@@ -51,7 +51,7 @@ def generate_launch_description():
                 'subscribe_rgb': 'true',
                 'subscribe_depth': 'true',
                 'use_sim_time': 'false',
-                'rtabmap_args': '--delete_db_on_start',
+                # 'rtabmap_args': '--delete_db_on_start',
                 'rtab_rviz': 'false',
                 'approx_sync_max_interval': '0.02'
             }.items()
