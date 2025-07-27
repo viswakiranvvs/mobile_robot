@@ -1,2 +1,6 @@
 .vscode/*.*
 log/*.*
+src/mapCtrl/mapCtrl/__pycache__
+build/
+install/
+log/
