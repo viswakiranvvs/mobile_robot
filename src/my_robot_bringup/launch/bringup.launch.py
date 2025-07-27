@@ -46,7 +46,7 @@ def generate_launch_description():
                 'rgb_topic': '/camera/camera/color/image_raw',
                 'depth_topic': '/camera/camera/depth/image_rect_raw',
                 'camera_info_topic': '/camera/camera/color/camera_info',
-                'frame_id': 'camera_link',
+                'frame_id': 'map',
                 'approx_sync': 'true',
                 'subscribe_rgb': 'true',
                 'subscribe_depth': 'true',
