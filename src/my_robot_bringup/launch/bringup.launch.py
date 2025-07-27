@@ -17,7 +17,7 @@ def generate_launch_description():
     return LaunchDescription([
         # 1. RTAB-Map
         IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(os.path.join(rtabmap_launch_dir, 'rtabmap.launch.py')),
+            PythonLaunchDescriptionSource(os.path.join(rtabmap_launch_dir, 'launch/rtabmap.launch.py')),
             launch_arguments={
                 'rgb_topic': '/camera/camera/color/image_raw',
                 'depth_topic': '/camera/camera/depth/image_rect_raw',
@@ -35,7 +35,7 @@ def generate_launch_description():
 
         # 2. Realsense camera
         IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(os.path.join(realsense_launch_dir, 'rs_launch.py')),
+            PythonLaunchDescriptionSource(os.path.join(realsense_launch_dir, 'launch/rs_launch.py')),
             launch_arguments={
                 'enable_rgb': 'true',
                 'enable_depth': 'true'
@@ -64,6 +64,6 @@ def generate_launch_description():
 
         # 5. Teleop launch
         IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(os.path.join(mobilebot_controller_dir, 'joystick_teleop.launch.py'))
+            PythonLaunchDescriptionSource(os.path.join(mobilebot_controller_dir, 'launch/joystick_teleop.launch.py'))
         ),
     ])
