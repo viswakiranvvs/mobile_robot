@@ -15,7 +15,31 @@ def generate_launch_description():
         get_package_share_directory('mobilebot_controller'))
 
     return LaunchDescription([
-        # 1. RTAB-Map
+
+        # 1. Realsense camera
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(os.path.join(realsense_launch_dir, 'launch/rs_launch.py')),
+            launch_arguments={
+                'enable_rgb': 'true',
+                'enable_depth': 'true'
+            }.items()
+        ),
+        
+        # 2. Joy node
+        Node(
+            package='joy',
+            executable='joy_node',
+            # output='screen'
+        ),
+
+        # 3. Your custom firmware joystick controller
+        Node(
+            package='mobilebot_firmware',
+            executable='joy_controller.py',
+            # output='screen'
+        ),
+
+        # 4. RTAB-Map
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(os.path.join(rtabmap_launch_dir, 'launch/rtabmap.launch.py')),
             launch_arguments={
@@ -31,29 +55,6 @@ def generate_launch_description():
                 'rtab_rviz': 'false',
                 'approx_sync_max_interval': '0.02'
             }.items()
-        ),
-
-        # 2. Realsense camera
-        IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(os.path.join(realsense_launch_dir, 'launch/rs_launch.py')),
-            launch_arguments={
-                'enable_rgb': 'true',
-                'enable_depth': 'true'
-            }.items()
-        ),
-
-        # 3. Joy node
-        Node(
-            package='joy',
-            executable='joy_node',
-            # output='screen'
-        ),
-
-        # 4. Your custom firmware joystick controller
-        Node(
-            package='mobilebot_firmware',
-            executable='joy_controller.py',
-            # output='screen'
         ),
 
         Node(
