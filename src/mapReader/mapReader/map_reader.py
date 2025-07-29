@@ -140,7 +140,7 @@ class MapClient(Node):
             self.get_logger().error(f"Failed to get occupancy map: {e}")
 
     def visualize_map(self,data):
-        fig = plt.figure(figsize=(10, 6))
+        fig = plt.figure(figsize=(15, 10))
         ax = fig.add_subplot(111, projection='3d')
 
         poses_x, poses_y, poses_z = [], [], []
@@ -173,6 +173,39 @@ class MapClient(Node):
         plt.tight_layout()
         plt.show()
 
+    def plot_map_graph(self,graph):
+        id_to_pose = {}  # Map from ID to (x, y) for fast lookup
+
+        # Extract poses
+        for i, node_id in enumerate(graph.poses_id):
+            pos = graph.poses[i].position
+            id_to_pose[node_id] = (pos.x, pos.y)
+
+        fig, ax = plt.subplots(figsize=(10, 8))
+
+        # Plot poses
+        xs = [pos[0] for pos in id_to_pose.values()]
+        ys = [pos[1] for pos in id_to_pose.values()]
+        ax.scatter(xs, ys, c='blue', label='Optimized Poses')
+
+        # Draw links (edges)
+        for link in graph.links:
+            from_id = link.from_id
+            to_id = link.to_id
+
+            if from_id in id_to_pose and to_id in id_to_pose:
+                x0, y0 = id_to_pose[from_id]
+                x1, y1 = id_to_pose[to_id]
+                ax.plot([x0, x1], [y0, y1], c='gray', linewidth=0.8)
+
+        ax.set_title('Optimized Pose Graph from RTAB-Map')
+        ax.set_xlabel('X')
+        ax.set_ylabel('Y')
+        ax.axis('equal')
+        ax.legend()
+        plt.grid(True)
+        plt.tight_layout()
+        plt.show()
 
     def handle_map_data_response(self, future):
         try:
@@ -189,7 +222,8 @@ class MapClient(Node):
             #     self.get_logger().info(f"Pose Id {data.graph.poses_id[i]}")
             #     self.get_logger().info(f"Pose {data.graph.poses[i]}")
                 # self.get_logger().info(f"Pose Id {data.graph.poses[0].id}: pose = {pose}") # {node.pose.pose.position.y}
-            self.visualize_map(data)
+            # self.visualize_map(data)
+            self.plot_map_graph(data.graph)
 
         except Exception as e:
             self.get_logger().error(f"Failed to get map data: {e}")
