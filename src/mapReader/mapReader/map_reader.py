@@ -22,6 +22,15 @@ def compute_orientation(from_point, to_point):
     q = quaternion_from_euler(0, 0, yaw)
     return q  # (x, y, z, w)
 
+def pose_stamped_to_tuple(pose_stamped):
+    pos = pose_stamped.pose.position
+    return (round(pos.x, 3), round(pos.y, 3), round(pos.z, 3))  # rounding to avoid float precision issues
+
+def pose_to_tuple(pose):
+    pos = pose.position
+    return (round(pos.x, 3), round(pos.y, 3), round(pos.z, 3))  # rounding to avoid float precision issues
+
+
 class MapClient(Node):
     def __init__(self):
         super().__init__('map_client')
@@ -29,17 +38,17 @@ class MapClient(Node):
         # Create client for occupancy map
         self.occ_map_client = self.create_client(GetOccupancyMapSrv, '/rtabmap/rtabmap/get_map')
         self.cli = self.occ_map_client
-        while not self.occ_map_client.wait_for_service(timeout_sec=1.0):
-            self.get_logger().info('Waiting for Occupancy Map service...')
+        # while not self.occ_map_client.wait_for_service(timeout_sec=1.0):
+        #     self.get_logger().info('Waiting for Occupancy Map service...')
 
         # Create client for RTAB-Map map data
         self.map_data_client = self.create_client(GetMapDataSrv, '/rtabmap/rtabmap/get_map_data')
-        while not self.map_data_client.wait_for_service(timeout_sec=1.0):
-            self.get_logger().info('Waiting for Map Data service...')
+        # while not self.map_data_client.wait_for_service(timeout_sec=1.0):
+        #     self.get_logger().info('Waiting for Map Data service...')
 
         self.get_plan_client = self.create_client(GetPlan, '/rtabmap/rtabmap/get_plan')
-        while not self.get_plan_client.wait_for_service(timeout_sec=1.0):
-            self.get_logger().info('Waiting for /rtabmap/rtabmap/get_plan...')
+        # while not self.get_plan_client.wait_for_service(timeout_sec=1.0):
+        #     self.get_logger().info('Waiting for /rtabmap/rtabmap/get_plan...')
         # self.send_request()
         # self.get_logger().info('Calling both services...')
 
@@ -251,7 +260,7 @@ class MapClient(Node):
             # self.visualize_map(data)
             # self.plot_map_graph(data.graph)
             # self.get_logger().info(data.graph.poses[0].position)
-            self.get_plan(data.graph.poses[50],data.graph.poses[20],tolerance=0.5)
+            self.get_plan(data.graph.poses[12],data.graph.poses[52],tolerance=0.5)
 
         except Exception as e:
             self.get_logger().error(f"Failed to get map data: {e}")
@@ -259,16 +268,16 @@ class MapClient(Node):
     def get_plan(self,Start, End, tolerance=0.5, frame_id="map"):
         req = GetPlan.Request()
 
-        req.start = PoseStamped()
-        req.start.header.frame_id = frame_id
-        req.start.pose.position.x = Start.position.x
-        req.start.pose.position.y = Start.position.y
-        req.start.pose.position.z = Start.position.z
+        # req.start = PoseStamped()
+        # req.start.header.frame_id = frame_id
+        # req.start.pose.position.x = Start.position.x
+        # req.start.pose.position.y = Start.position.y
+        # req.start.pose.position.z = Start.position.z
 
-        req.start.pose.orientation.x = Start.orientation.x
-        req.start.pose.orientation.y = Start.orientation.y
-        req.start.pose.orientation.z = Start.orientation.z
-        req.start.pose.orientation.w = Start.orientation.w
+        # req.start.pose.orientation.x = Start.orientation.x
+        # req.start.pose.orientation.y = Start.orientation.y
+        # req.start.pose.orientation.z = Start.orientation.z
+        # req.start.pose.orientation.w = Start.orientation.w
 
 
 
@@ -299,24 +308,86 @@ class MapClient(Node):
 
         if future.result():
             path = future.result().plan
-            # print(path)
+            set1 = path.poses
             self.get_logger().info(f"Received path with {len(path.poses)} poses")
+
+        req.goal.pose.position.x = Start.position.x
+        req.goal.pose.position.y = Start.position.y
+        req.goal.pose.position.z = Start.position.z
+
+        req.goal.pose.orientation.x = Start.orientation.x
+        req.goal.pose.orientation.y = Start.orientation.y
+        req.goal.pose.orientation.z = Start.orientation.z
+        req.goal.pose.orientation.w = Start.orientation.w
+
+        self.get_logger().info("Calling Get Plan Service")
+
+        future = self.get_plan_client.call_async(req)
+        rclpy.spin_until_future_complete(self, future)
+
+        if future.result():
+            # print(future.result())
+            path = future.result().plan
+            set2 = path.poses
+            self.get_logger().info(f"Received path with {len(path.poses)} poses")
+        
+        if set1 and set2:
+
+            # print(path)
             # for i, pose in enumerate(path.poses[:5]):
             #     self.get_logger().info(f"Pose {i}: {pose.pose.position}")
-            
+            pose_set1 = set(pose_stamped_to_tuple(p) for p in set1)
+            pose_set2 = set(pose_stamped_to_tuple(p) for p in set2)
+            # print(pose_set1)
+            # print(pose_set2)
+            if len(pose_set2) > len(pose_set1):
+                # common_poses = pose_set2.difference(pose_set1)
+                pose_set1_tuples = set(pose_stamped_to_tuple(p) for p in set1)
+                common_poses = [p for p in set2 if pose_stamped_to_tuple(p) not in pose_set1_tuples]
+            else:
+                # common_poses = pose_set1.difference(pose_set2)
+                pose_set2_tuples = set(pose_stamped_to_tuple(p) for p in set2)
+                common_poses = [p for p in set1 if pose_stamped_to_tuple(p) not in pose_set2_tuples]
+
+            start_tuple = pose_to_tuple(Start)
+            end_tuple = pose_to_tuple(End)
+
+            common_pose_tuples = set(pose_stamped_to_tuple(p) for p in common_poses)
+
+            # If Start or End are missing, insert at beginning (reverse order if you want End first)
+            if end_tuple not in common_pose_tuples:
+                end_pose_stamped = PoseStamped()
+                end_pose_stamped.header.frame_id = frame_id
+                end_pose_stamped.pose = End
+                common_poses.insert(0, end_pose_stamped)
+
+            if start_tuple not in common_pose_tuples:
+                start_pose_stamped = PoseStamped()
+                start_pose_stamped.header.frame_id = frame_id
+                start_pose_stamped.pose = Start
+                common_poses.insert(0, start_pose_stamped)
+            # sorted_common_poses = sorted(common_poses, key=lambda p: (p[0], p[1]))
+            # common_poses.insert(0)
+
+            for pose in reversed(common_poses):
+                print(pose.pose.position.x,pose.pose.position.y)
 
             # Extract x, y from path
-            x_vals = [pose.pose.position.x for pose in path.poses]
-            y_vals = [pose.pose.position.y for pose in path.poses]
+            x_vals = [pose.pose.position.x for pose in common_poses]
+            y_vals = [pose.pose.position.y for pose in common_poses]
 
-            # for i, (x, y) in enumerate(zip(x_vals, y_vals)):
-            #     if i % 10 == 0:
-            #         plt.plot(x, y, 'ko')  # black dots
+            # x_vals = [pose[0] for pose in sorted_common_poses]
+            # y_vals = [pose[1] for pose in sorted_common_poses]
+
+            
 
             # Plot path
             plt.figure(figsize=(8, 6))
             plt.plot(x_vals, y_vals, marker='o', linestyle='-', label='Planned Path')
 
+            # for i, (x, y) in enumerate(zip(x_vals, y_vals)):
+            #     if i % 10 == 0:
+            #         plt.plot(x, y, 'ko')  # black dots
             # Plot start and end
             plt.scatter(Start.position.x, Start.position.y, c='green', s=100, label='Start')
             plt.scatter(End.position.x, End.position.y, c='red', s=100, label='Goal')
