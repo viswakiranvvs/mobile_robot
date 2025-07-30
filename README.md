@@ -29,3 +29,16 @@ ros2 service call /rtabmap/rtabmap/set_mode_localization std_srvs/srv/Empty "{}"
 ```
 ros2 service call /rtabmap/rtabmap/load_database rtabmap_msgs/srv/LoadDatabase "{ database_path: /home/rpi-1/.ros/rtabmap.db , clear: false}"
 ````
+
+## Joy stick Teleop
+
+```
+ros2 launch mobilebot_controller joystick_teleop.launch.py 
+```
+
+## Motor Controller
+
+```
+ros2 run mobilebot_firmware joy_controller.py 
+```
+

@@ -1,4 +1,5 @@
 import pickle
+from mapReader.pose_to_veloc import PathFollower
 import rclpy
 from rclpy.node import Node
 from nav_msgs.srv import GetMap
@@ -257,10 +258,12 @@ class MapClient(Node):
             #     self.get_logger().info(f"Pose Id {data.graph.poses_id[i]}")
             #     self.get_logger().info(f"Pose {data.graph.poses[i]}")
                 # self.get_logger().info(f"Pose Id {data.graph.poses[0].id}: pose = {pose}") # {node.pose.pose.position.y}
-            # self.visualize_map(data)
-            # self.plot_map_graph(data.graph)
+            self.visualize_map(data)
+            self.plot_map_graph(data.graph)
             # self.get_logger().info(data.graph.poses[0].position)
-            self.get_plan(data.graph.poses[12],data.graph.poses[52],tolerance=0.5)
+            poses = self.get_plan(data.graph.poses[12],data.graph.poses[52],tolerance=0.5)
+            # path_follower = PathFollower()
+            # path_follower.navigate_path(poses)
 
         except Exception as e:
             self.get_logger().error(f"Failed to get map data: {e}")
@@ -399,6 +402,7 @@ class MapClient(Node):
             plt.grid(True)
             plt.axis('equal')
             plt.show()
+            return common_poses
         else:
             self.get_logger().error("Service call failed")
 
@@ -407,8 +411,8 @@ def main(args=None):
     map_client = MapClient()
     # map_client.send_request()
     # map_client.call_get_occupancy_map()
-    # map_client.call_get_map_data()
-    map_client.handle_map_data_response(None,True)
+    map_client.call_get_map_data()
+    # map_client.handle_map_data_response(None,True)
     map_client.destroy_node()
     rclpy.shutdown()
 
