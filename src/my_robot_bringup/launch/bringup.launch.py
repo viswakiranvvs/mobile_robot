@@ -46,14 +46,16 @@ def generate_launch_description():
                 'rgb_topic': '/camera/camera/color/image_raw',
                 'depth_topic': '/camera/camera/depth/image_rect_raw',
                 'camera_info_topic': '/camera/camera/color/camera_info',
-                'frame_id': 'map',
+                'frame_id': 'camera_link',
                 'approx_sync': 'true',
                 'subscribe_rgb': 'true',
                 'subscribe_depth': 'true',
                 'use_sim_time': 'false',
                 # 'rtabmap_args': '--delete_db_on_start',
                 'rtab_rviz': 'false',
-                'approx_sync_max_interval': '0.02'
+                'approx_sync_max_interval': '0.02',
+                'topic_queue_size': '30',
+                'sync_queue_size': '30'
             }.items()
         ),
 

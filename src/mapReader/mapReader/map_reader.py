@@ -1,3 +1,4 @@
+import pickle
 import rclpy
 from rclpy.node import Node
 from nav_msgs.srv import GetMap
@@ -10,6 +11,16 @@ from rclpy.task import Future
 from rtabmap_msgs.srv import GetMap as GetMapDataSrv  # Not nav_msgs GetMap
 from nav_msgs.srv import GetMap as GetOccupancyMapSrv
 from mpl_toolkits.mplot3d import Axes3D
+from nav_msgs.srv import GetPlan
+from geometry_msgs.msg import PoseStamped
+from builtin_interfaces.msg import Time
+import math
+from tf_transformations import quaternion_from_euler  # If not available, use tf2 or custom method
+
+def compute_orientation(from_point, to_point):
+    yaw = math.atan2(to_point.y - from_point.y, to_point.x - from_point.x)
+    q = quaternion_from_euler(0, 0, yaw)
+    return q  # (x, y, z, w)
 
 class MapClient(Node):
     def __init__(self):
@@ -26,6 +37,10 @@ class MapClient(Node):
         while not self.map_data_client.wait_for_service(timeout_sec=1.0):
             self.get_logger().info('Waiting for Map Data service...')
 
+        self.get_plan_client = self.create_client(GetPlan, '/rtabmap/rtabmap/get_plan')
+        while not self.get_plan_client.wait_for_service(timeout_sec=1.0):
+            self.get_logger().info('Waiting for /rtabmap/rtabmap/get_plan...')
+        # self.send_request()
         # self.get_logger().info('Calling both services...')
 
     def send_request(self):
@@ -114,7 +129,7 @@ class MapClient(Node):
         future = self.map_data_client.call_async(request)
         rclpy.spin_until_future_complete(self, future)
         self.get_logger().info("Received, calling handler")
-        self.handle_map_data_response(future)
+        self.handle_map_data_response(future,False)
         
         # future.add_done_callback(self.handle_map_data_response)
 
@@ -207,33 +222,122 @@ class MapClient(Node):
         plt.tight_layout()
         plt.show()
 
-    def handle_map_data_response(self, future):
+    def load_map_data(self,path="map_data.pkl"):
+        with open(path, "rb") as f:
+            data = pickle.load(f)
+        return data
+
+    def handle_map_data_response(self, future=None, dummy=False):
         try:
-            response = future.result()
-            data = response.data
+            if dummy:
+                data=self.load_map_data()
+            else:
+                response = future.result()
+                data = response.data
+                save_path = "map_data.pkl"
+                with open(save_path, "wb") as f:
+                    pickle.dump(data, f)
             self.get_logger().info(f"Received MapData: {len(data.nodes)} nodes, {len(data.graph.poses)} graph poses")
 
             # You can access the graph and node info like:
             # print(data.nodes[0])
-            for i, node in enumerate(data.nodes[:5]):
-                self.get_logger().info(f"Node {node.id}: pose = {node.pose}") # {node.pose.pose.position.y}
+            # for i, node in enumerate(data.nodes[:5]):
+            #     self.get_logger().info(f"Node {node.id}: pose = {node.pose}") # {node.pose.pose.position.y}
 
             # for i in range(0,5):
             #     self.get_logger().info(f"Pose Id {data.graph.poses_id[i]}")
             #     self.get_logger().info(f"Pose {data.graph.poses[i]}")
                 # self.get_logger().info(f"Pose Id {data.graph.poses[0].id}: pose = {pose}") # {node.pose.pose.position.y}
             # self.visualize_map(data)
-            self.plot_map_graph(data.graph)
+            # self.plot_map_graph(data.graph)
+            # self.get_logger().info(data.graph.poses[0].position)
+            self.get_plan(data.graph.poses[50],data.graph.poses[20],tolerance=0.5)
 
         except Exception as e:
             self.get_logger().error(f"Failed to get map data: {e}")
+    
+    def get_plan(self,Start, End, tolerance=0.5, frame_id="map"):
+        req = GetPlan.Request()
+
+        req.start = PoseStamped()
+        req.start.header.frame_id = frame_id
+        req.start.pose.position.x = Start.position.x
+        req.start.pose.position.y = Start.position.y
+        req.start.pose.position.z = Start.position.z
+
+        req.start.pose.orientation.x = Start.orientation.x
+        req.start.pose.orientation.y = Start.orientation.y
+        req.start.pose.orientation.z = Start.orientation.z
+        req.start.pose.orientation.w = Start.orientation.w
+
+
+
+        self.get_logger().info(f"Path from ({Start.position.x:.2f}, {Start.position.y:.2f})")
+        self.get_logger().info(f"Path to ({End.position.x:.2f}, {End.position.y:.2f})")
+
+        req.goal = PoseStamped()
+        req.goal.header.frame_id = frame_id
+        req.goal.pose.position.x = End.position.x
+        req.goal.pose.position.y = End.position.y
+        req.goal.pose.position.z = End.position.z
+
+        req.goal.pose.orientation.x = End.orientation.x
+        req.goal.pose.orientation.y = End.orientation.y
+        req.goal.pose.orientation.z = End.orientation.z
+        req.goal.pose.orientation.w = End.orientation.w
+
+
+        # now = self.get_clock().now().to_msg()
+        # req.start.header.stamp = now
+        # req.goal.header.stamp = now
+
+        req.tolerance = tolerance
+        self.get_logger().info("Calling Get Plan Service")
+
+        future = self.get_plan_client.call_async(req)
+        rclpy.spin_until_future_complete(self, future)
+
+        if future.result():
+            path = future.result().plan
+            # print(path)
+            self.get_logger().info(f"Received path with {len(path.poses)} poses")
+            # for i, pose in enumerate(path.poses[:5]):
+            #     self.get_logger().info(f"Pose {i}: {pose.pose.position}")
+            
+
+            # Extract x, y from path
+            x_vals = [pose.pose.position.x for pose in path.poses]
+            y_vals = [pose.pose.position.y for pose in path.poses]
+
+            # for i, (x, y) in enumerate(zip(x_vals, y_vals)):
+            #     if i % 10 == 0:
+            #         plt.plot(x, y, 'ko')  # black dots
+
+            # Plot path
+            plt.figure(figsize=(8, 6))
+            plt.plot(x_vals, y_vals, marker='o', linestyle='-', label='Planned Path')
+
+            # Plot start and end
+            plt.scatter(Start.position.x, Start.position.y, c='green', s=100, label='Start')
+            plt.scatter(End.position.x, End.position.y, c='red', s=100, label='Goal')
+
+            plt.title("RTAB-Map Global Path")
+            plt.xlabel("X")
+            plt.ylabel("Y")
+            plt.legend()
+            plt.grid(True)
+            plt.axis('equal')
+            plt.show()
+        else:
+            self.get_logger().error("Service call failed")
 
 def main(args=None):
     rclpy.init(args=args)
     map_client = MapClient()
     # map_client.send_request()
     # map_client.call_get_occupancy_map()
-    map_client.call_get_map_data()
+    # map_client.call_get_map_data()
+    map_client.handle_map_data_response(None,True)
     map_client.destroy_node()
     rclpy.shutdown()
 
