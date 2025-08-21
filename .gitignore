@@ -5,3 +5,4 @@ src/mapReader/mapReader/__pycache__
 build/
 install/
 log/
+map_data.pkl

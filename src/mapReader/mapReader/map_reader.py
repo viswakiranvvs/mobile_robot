@@ -204,7 +204,7 @@ class MapClient(Node):
         # Extract poses
         for i, node_id in enumerate(graph.poses_id):
             pos = graph.poses[i].position
-            id_to_pose[node_id] = (pos.x, pos.y)
+            id_to_pose[node_id] = (pos.z, pos.x)
 
         fig, ax = plt.subplots(figsize=(10, 8))
 
@@ -258,12 +258,12 @@ class MapClient(Node):
             #     self.get_logger().info(f"Pose Id {data.graph.poses_id[i]}")
             #     self.get_logger().info(f"Pose {data.graph.poses[i]}")
                 # self.get_logger().info(f"Pose Id {data.graph.poses[0].id}: pose = {pose}") # {node.pose.pose.position.y}
-            self.visualize_map(data)
+            # self.visualize_map(data)
             self.plot_map_graph(data.graph)
             # self.get_logger().info(data.graph.poses[0].position)
-            poses = self.get_plan(data.graph.poses[12],data.graph.poses[52],tolerance=0.5)
-            # path_follower = PathFollower()
-            # path_follower.navigate_path(poses)
+            poses = self.get_plan(data.graph.poses[0],data.graph.poses[182],tolerance=0.1,frame_id='map')
+            path_follower = PathFollower()
+            path_follower.navigate_path(poses,data.graph.poses[0])
 
         except Exception as e:
             self.get_logger().error(f"Failed to get map data: {e}")
@@ -377,7 +377,7 @@ class MapClient(Node):
 
             # Extract x, y from path
             x_vals = [pose.pose.position.x for pose in common_poses]
-            y_vals = [pose.pose.position.y for pose in common_poses]
+            y_vals = [pose.pose.position.z for pose in common_poses]
 
             # x_vals = [pose[0] for pose in sorted_common_poses]
             # y_vals = [pose[1] for pose in sorted_common_poses]
@@ -392,8 +392,8 @@ class MapClient(Node):
             #     if i % 10 == 0:
             #         plt.plot(x, y, 'ko')  # black dots
             # Plot start and end
-            plt.scatter(Start.position.x, Start.position.y, c='green', s=100, label='Start')
-            plt.scatter(End.position.x, End.position.y, c='red', s=100, label='Goal')
+            plt.scatter(Start.position.x, Start.position.z, c='green', s=100, label='Start')
+            plt.scatter(End.position.x, End.position.z, c='red', s=100, label='Goal')
 
             plt.title("RTAB-Map Global Path")
             plt.xlabel("X")

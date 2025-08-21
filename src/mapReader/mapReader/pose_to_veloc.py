@@ -1,3 +1,4 @@
+from time import sleep
 from mapReader.joy_controller import JoystickMotorController
 from rclpy.node import Node
 from geometry_msgs.msg import PoseStamped
@@ -39,7 +40,7 @@ class PathFollower(Node):
         self.current_index = 0
         self.tolerance = 0.1  # meters
         self.current_pose=None
-        self.motor_controller = JoystickMotorController()
+        # self.motor_controller = JoystickMotorController()
 
         # You'll need to subscribe to /odom or TF to update this
     
@@ -72,72 +73,140 @@ class PathFollower(Node):
             self.current_pose = pose_stamped
             self.get_logger().debug(f"Updated current pose: x={pose_stamped.pose.position.x:.2f}, y={pose_stamped.pose.position.y:.2f}")
 
-    def quaternion_to_yaw(self, q):
-        # Converts quaternion to yaw
-        siny_cosp = 2 * (q.w * q.z + q.x * q.y)
-        cosy_cosp = 1 - 2 * (q.y * q.y + q.z * q.z)
-        return math.atan2(siny_cosp, cosy_cosp)
+    def quaternion_to_yaw(self, orientation):
+        """Convert quaternion to yaw angle (rotation around Y-axis for X-Z plane)"""
+        # For X-Z coordinate system, yaw is rotation around Y-axis
+        # Standard formula still works since it gives rotation around vertical axis
+        x, y, z, w = orientation.x, orientation.y, orientation.z, orientation.w
+        
+        # Yaw (rotation around Y-axis) calculation
+        siny_cosp = 2.0 * (w * z + x * y)
+        cosy_cosp = 1.0 - 2.0 * (y * y + z * z)
+        yaw = math.atan2(siny_cosp, cosy_cosp)
+        
+        return yaw
 
     def normalize_angle(self, angle):
-        # Normalize angle to [-pi, pi]
+        """Normalize angle to [-pi, pi]"""
         while angle > math.pi:
-            angle -= 2 * math.pi
+            angle -= 2.0 * math.pi
         while angle < -math.pi:
-            angle += 2 * math.pi
+            angle += 2.0 * math.pi
         return angle
 
-    def navigate_path(self, common_poses, threshold=0.2, linear_speed=180, angular_speed=100):
+    def send_motor_commands(self, left_rpm, right_rpm):
         """
-        Follow waypoints from common_poses using odometry + serial motor commands.
+        Send RPM commands to motors
+        Implement this based on your specific motor controller
         """
-        if self.current_pose is None:
+        # Example implementation (adjust for your hardware):
+        # self.motor_controller.send_motor_command(1, left_rpm)   # Front left
+        # self.motor_controller.send_motor_command(2, right_rpm)  # Front right  
+        # self.motor_controller.send_motor_command(3, right_rpm)  # Rear right
+        # self.motor_controller.send_motor_command(4, left_rpm)   # Rear left
+        
+        self.get_logger().info(f"Motor commands: Left={left_rpm:.1f}, Right={right_rpm:.1f}")
+
+    def navigate_path(self, path_poses, current_pose=None, threshold=0.2, 
+                 linear_speed=0.4, angular_speed=1.0, timeout=30.0):
+        """
+        Follow waypoints using X-Z coordinates (camera coordinate system)
+        where X is forward and Z is left/right instead of traditional X-Y
+        """
+        if current_pose is None:
             self.get_logger().warn("Current pose not yet received!")
-            return
-
-        for target in common_poses:
+            return False
+        
+        self.current_pose = current_pose
+        
+        for i, target in enumerate(path_poses):
+            start_time = self.get_clock().now()
             reached = False
-            while not reached:
+            self.get_logger().info(f"Navigating to waypoint {i+1}/{len(path_poses)}")
+            
+            while not reached and (self.get_clock().now() - start_time).nanoseconds < timeout * 1e9:
+                # Get latest pose
                 if self.current_pose is None:
-                    continue
-
-                # Current position
-                curr_x = self.current_pose.pose.position.x
-                curr_y = self.current_pose.pose.position.y
-
-                # Target position
+                    self.get_logger().warn("Lost current pose!")
+                    return False
+                
+                # Current position (using X-Z coordinates from camera)
+                curr_x = self.current_pose.position.x
+                curr_z = self.current_pose.position.z  # Z represents left/right instead of Y
+                
+                # Target position (also in X-Z coordinates)
                 target_x = target.pose.position.x
-                target_y = target.pose.position.y
-
-                # Calculate distance and angle
+                target_z = target.pose.position.z  # Z represents left/right instead of Y
+                
+                # Calculate distance and angle in X-Z plane
                 dx = target_x - curr_x
-                dy = target_y - curr_y
-                distance = math.hypot(dx, dy)
-                angle_to_target = math.atan2(dy, dx)
-
+                dz = target_z - curr_z  # dz instead of dy
+                distance = math.hypot(dx, dz)
+                
+                # Calculate angle in X-Z plane (atan2(dz, dx) instead of atan2(dy, dx))
+                angle_to_target = math.atan2(dz, dx)
+                
                 # Current orientation as yaw
-                orientation = self.current_pose.pose.orientation
+                orientation = self.current_pose.orientation
                 yaw = self.quaternion_to_yaw(orientation)
-
+                
+                # Calculate angle difference
                 angle_diff = self.normalize_angle(angle_to_target - yaw)
-
-                # Rotate to face target
-                if abs(angle_diff) > 0.2:
-                    left_rpm = -angular_speed if angle_diff < 0 else angular_speed
-                    right_rpm = -left_rpm
-                elif distance > threshold:
-                    left_rpm = right_rpm = linear_speed
+                
+                # Control logic
+                left_rpm, right_rpm = 0, 0
+                
+                if abs(angle_diff) > 0.2:  # Rotation threshold
+                    # Rotate to face target
+                    if angle_diff < 0:
+                        # Turn right (clockwise)
+                        left_rpm = angular_speed
+                        right_rpm = -angular_speed
+                    else:
+                        # Turn left (counter-clockwise)
+                        left_rpm = -angular_speed
+                        right_rpm = angular_speed
+                        
+                elif distance > threshold:  # Distance threshold
+                    # Move forward
+                    left_rpm = linear_speed
+                    right_rpm = linear_speed
                 else:
-                    self.motor_controller.send_motor_command(1, 0)
-                    self.motor_controller.send_motor_command(2, 0)
-                    self.motor_controller.send_motor_command(3, 0)
-                    self.motor_controller.send_motor_command(4, 0)
+                    # Target reached
                     reached = True
+                    self.get_logger().info(f"Reached waypoint {i+1} at X={target_x:.2f}, Z={target_z:.2f}")
+                    # Stop motors
+                    self.send_motor_commands(0, 0)
                     break
+                
+                # Send motor commands
+                self.send_motor_commands(left_rpm, right_rpm)
+                
+                # Log debug information
+                self.get_logger().info(
+                    f"Current: X={curr_x:.2f}, Z={curr_z:.2f}, "
+                    f"Target: X={target_x:.2f}, Z={target_z:.2f}, "
+                    f"Distance: {distance:.2f}, Angle diff: {angle_diff:.2f} rad"
+                )
 
-                # Send motor RPMs
-                self.motor_controller.send_motor_command(1, left_rpm)
-                self.motor_controller.send_motor_command(3, right_rpm)
-                self.motor_controller.send_motor_command(2, right_rpm)
-                self.motor_controller.send_motor_command(4, left_rpm)
+                sleep(1)
+
+                self.current_pose = target.pose
+                reached = True
+                
+                # Sleep to avoid spinning too fast
+                # self.rate.sleep()
+            
+            if not reached:
+                self.get_logger().error(f"Timeout reaching waypoint {i+1}")
+                self.send_motor_commands(0, 0)  # Stop motors
+                return False
+            
+            # Brief pause after reaching each waypoint
+            # rclpy.spin_once(self, timeout_sec=1.0)
+        
+        self.get_logger().info("All waypoints reached successfully!")
         return True
+
+
 
