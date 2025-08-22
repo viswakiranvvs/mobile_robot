@@ -17,6 +17,8 @@ from geometry_msgs.msg import PoseStamped
 from builtin_interfaces.msg import Time
 import math
 from tf_transformations import quaternion_from_euler  # If not available, use tf2 or custom method
+from nav2_simple_commander.robot_navigator import BasicNavigator
+
 
 def compute_orientation(from_point, to_point):
     yaw = math.atan2(to_point.y - from_point.y, to_point.x - from_point.x)
@@ -48,6 +50,7 @@ class MapClient(Node):
         #     self.get_logger().info('Waiting for Map Data service...')
 
         self.get_plan_client = self.create_client(GetPlan, '/rtabmap/rtabmap/get_plan')
+        self.navigator = BasicNavigator()
         # while not self.get_plan_client.wait_for_service(timeout_sec=1.0):
         #     self.get_logger().info('Waiting for /rtabmap/rtabmap/get_plan...')
         # self.send_request()
@@ -264,6 +267,22 @@ class MapClient(Node):
             poses = self.get_plan(data.graph.poses[0],data.graph.poses[182],tolerance=0.1,frame_id='map')
             path_follower = PathFollower()
             path_follower.navigate_path(poses,data.graph.poses[0])
+            intial = PoseStamped()
+            intial.header.frame_id = "map"
+            intial.pose.position.x = data.graph.poses[0].position.x
+            intial.pose.position.y = data.graph.poses[0].position.y
+            intial.pose.position.z = data.graph.poses[0].position.z
+
+            intial.pose.orientation.x = data.graph.poses[0].orientation.x
+            intial.pose.orientation.y = data.graph.poses[0].orientation.y
+            intial.pose.orientation.z = data.graph.poses[0].orientation.z
+            intial.pose.orientation.w = data.graph.poses[0].orientation.w
+            print(type(data.graph.poses[0]))
+            print(type(poses[0]))
+            print(type(poses[0].pose))
+            # self.navigator.setInitialPose(intial)
+            # self.navigator.waitUntilNav2Active()
+            # self.navigator.followWaypoints(poses)
 
         except Exception as e:
             self.get_logger().error(f"Failed to get map data: {e}")
