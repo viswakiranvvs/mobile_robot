@@ -100,10 +100,10 @@ class PathFollower(Node):
         Implement this based on your specific motor controller
         """
         # Example implementation (adjust for your hardware):
-        # self.motor_controller.send_motor_command(1, left_rpm)   # Front left
-        # self.motor_controller.send_motor_command(2, right_rpm)  # Front right  
-        # self.motor_controller.send_motor_command(3, right_rpm)  # Rear right
-        # self.motor_controller.send_motor_command(4, left_rpm)   # Rear left
+        self.motor_controller.send_motor_command(1, left_rpm)   # Front left
+        self.motor_controller.send_motor_command(2, right_rpm)  # Front right  
+        self.motor_controller.send_motor_command(3, right_rpm)  # Rear right
+        self.motor_controller.send_motor_command(4, left_rpm)   # Rear left
         
         self.get_logger().info(f"Motor commands: Left={left_rpm:.1f}, Right={right_rpm:.1f}")
 
