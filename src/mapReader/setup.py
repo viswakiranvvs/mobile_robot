@@ -20,7 +20,9 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'map_reader = mapReader.map_reader:main'
+            'map_reader = mapReader.map_reader:main',
+            'cmd_vel_to_rotor = mapReader.cmd_vel_to_rotor:main',
+            'joy_drone_control = mapReader.joy_drone_controller:main',
         ],
     },
 )
