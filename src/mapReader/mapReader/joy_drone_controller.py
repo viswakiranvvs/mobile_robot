@@ -29,14 +29,14 @@ class JoystickController(Node):
         
         # Initialize the current target position
         self.current_pose = PoseStamped()
-        self.current_pose.pose.position = Point(x=0.0, y=0.0, z=0.0) # Start at 2m altitude
+        self.current_pose.pose.position = Point(x=0.0, y=0.0, z=2.0) # Start at 2m altitude
         self.current_pose.pose.orientation = Quaternion(x=0.0, y=0.0, z=0.0, w=1.0) # Default orientation
         self.current_pose.header.frame_id = 'world'
         
         # Control parameters (adjust these for sensitivity)
-        self.linear_speed = 0.2  # meters per second per joystick push
+        self.linear_speed = 0.5  # meters per second per joystick push
         self.angular_speed = 0.5 # radians per second per joystick push
-        self.update_rate = 10.0  # Hz
+        self.update_rate = 10  # Hz
         self.last_update = self.get_clock().now()
         
         self.get_logger().info('Joystick Controller Node Started. Waiting for /joy messages...')
@@ -64,7 +64,7 @@ class JoystickController(Node):
         # Scale the joystick input by speed and time for smooth control
         self.current_pose.pose.position.x += left_stick_lr * self.linear_speed * dt
         self.current_pose.pose.position.y += left_stick_ud * self.linear_speed * dt
-        self.current_pose.pose.position.z += right_stick_ud * self.linear_speed * dt
+        self.current_pose.pose.position.z += 0 #right_stick_ud * self.linear_speed * dt
         
         # --- Update the target yaw (orientation) ---
         current_yaw = 2 * math.atan2(self.current_pose.pose.orientation.z, 
