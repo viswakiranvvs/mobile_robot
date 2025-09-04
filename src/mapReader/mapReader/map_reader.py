@@ -261,25 +261,25 @@ class MapClient(Node):
             #     self.get_logger().info(f"Pose Id {data.graph.poses_id[i]}")
             #     self.get_logger().info(f"Pose {data.graph.poses[i]}")
                 # self.get_logger().info(f"Pose Id {data.graph.poses[0].id}: pose = {pose}") # {node.pose.pose.position.y}
-            # self.visualize_map(data)
+            self.visualize_map(data)
             self.plot_map_graph(data.graph)
             # self.get_logger().info(data.graph.poses[0].position)
-            poses = self.get_plan(data.graph.poses[0],data.graph.poses[182],tolerance=0.1,frame_id='map')
-            path_follower = PathFollower()
-            path_follower.navigate_path(poses,data.graph.poses[0])
-            intial = PoseStamped()
-            intial.header.frame_id = "map"
-            intial.pose.position.x = data.graph.poses[0].position.x
-            intial.pose.position.y = data.graph.poses[0].position.y
-            intial.pose.position.z = data.graph.poses[0].position.z
+            poses = self.get_plan(data.graph.poses[0],data.graph.poses[4],tolerance=0.1,frame_id='map')
+            # path_follower = PathFollower()
+            # path_follower.navigate_path(poses,data.graph.poses[0])
+            # intial = PoseStamped()
+            # intial.header.frame_id = "map"
+            # intial.pose.position.x = data.graph.poses[0].position.x
+            # intial.pose.position.y = data.graph.poses[0].position.y
+            # intial.pose.position.z = data.graph.poses[0].position.z
 
-            intial.pose.orientation.x = data.graph.poses[0].orientation.x
-            intial.pose.orientation.y = data.graph.poses[0].orientation.y
-            intial.pose.orientation.z = data.graph.poses[0].orientation.z
-            intial.pose.orientation.w = data.graph.poses[0].orientation.w
-            print(type(data.graph.poses[0]))
-            print(type(poses[0]))
-            print(type(poses[0].pose))
+            # intial.pose.orientation.x = data.graph.poses[0].orientation.x
+            # intial.pose.orientation.y = data.graph.poses[0].orientation.y
+            # intial.pose.orientation.z = data.graph.poses[0].orientation.z
+            # intial.pose.orientation.w = data.graph.poses[0].orientation.w
+            # print(type(data.graph.poses[0]))
+            # print(type(poses[0]))
+            # print(type(poses[0].pose))
             # self.navigator.setInitialPose(intial)
             # self.navigator.waitUntilNav2Active()
             # self.navigator.followWaypoints(poses)
@@ -429,7 +429,7 @@ def main(args=None):
     rclpy.init(args=args)
     map_client = MapClient()
     # map_client.send_request()
-    # map_client.call_get_occupancy_map()
+    map_client.call_get_occupancy_map()
     map_client.call_get_map_data()
     # map_client.handle_map_data_response(None,True)
     map_client.destroy_node()
