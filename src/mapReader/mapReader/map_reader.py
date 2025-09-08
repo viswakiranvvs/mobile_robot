@@ -19,7 +19,8 @@ import math
 # from tf_transformations import quaternion_from_euler  # If not available, use tf2 or custom method
 from nav2_simple_commander.robot_navigator import BasicNavigator
 import time
-
+from tf2_ros import Buffer, TransformListener
+import tf2_geometry_msgs 
 # def compute_orientation(from_point, to_point):
 #     yaw = math.atan2(to_point.y - from_point.y, to_point.x - from_point.x)
 #     q = quaternion_from_euler(0, 0, yaw)
@@ -51,6 +52,10 @@ class MapClient(Node):
 
         self.get_plan_client = self.create_client(GetPlan, '/rtabmap/rtabmap/get_plan')
         self.navigator = BasicNavigator()
+
+        self.tf_buffer = Buffer()
+        self.tf_listener = TransformListener(self.tf_buffer, self)
+
         # while not self.get_plan_client.wait_for_service(timeout_sec=1.0):
         #     self.get_logger().info('Waiting for /rtabmap/rtabmap/get_plan...')
         # self.send_request()
@@ -292,12 +297,28 @@ class MapClient(Node):
 
         except Exception as e:
             self.get_logger().error(f"Failed to get map data: {e}")
+
+    def map_to_baselink(self, msg: PoseStamped):
+        try:
+            # Transform pose from "map" → "drone_base_link"
+            target_frame = 'drone_base_link'
+            transformed_pose = self.tf_buffer.transform(
+                msg,
+                target_frame,
+                timeout=rclpy.duration.Duration(seconds=0.5)
+            )
+            self.get_logger().info(
+                f"Pose in {target_frame}: {transformed_pose.pose.position}"
+            )
+        except Exception as e:
+            self.get_logger().warn(f"Transform failed: {str(e)}")
    
     def publish_poses(self,poses):
         for pose in poses:
-            pose.pose.position.z = -1*pose.pose.position.z
-            self.goal_publisher.publish(pose)
-            self.get_logger().info(f"Published goal pose: ({pose.pose.position.x:.2f}, {pose.pose.position.y:.2f}, {pose.pose.position.z:.2f})")
+            # pose.pose.position.z = -1*pose.pose.position.z
+            transformedPose = self.map_to_baselink(pose)
+            self.goal_publisher.publish(transformedPose)
+            self.get_logger().info(f"Published goal pose: ({transformedPose.pose.position.x:.2f}, {transformedPose.pose.position.y:.2f}, {transformedPose.pose.position.z:.2f})")
             time.sleep(1)
 
     def get_plan(self,Start, End, tolerance=0.5, frame_id="map"):
