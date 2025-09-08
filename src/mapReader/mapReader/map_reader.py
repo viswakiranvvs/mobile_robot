@@ -302,23 +302,42 @@ class MapClient(Node):
         try:
             # Transform pose from "map" → "drone_base_link"
             target_frame = 'drone_base_link'
+            # Inside your ROS2 node
+            
             transformed_pose = self.tf_buffer.transform(
                 msg,
                 target_frame,
                 timeout=rclpy.duration.Duration(seconds=0.5)
             )
-            self.get_logger().info(
-                f"Pose in {target_frame}: {transformed_pose.pose.position}"
-            )
+            # self.get_logger().info(
+            #     f"Pose in {target_frame}: {transformed_pose.pose.position}"
+            # )
+            return transformed_pose
         except Exception as e:
             self.get_logger().warn(f"Transform failed: {str(e)}")
    
     def publish_poses(self,poses):
+        # from rclpy.duration import Duration
+
+        # Get frame graph
+        frames_yaml = self.tf_buffer.all_frames_as_yaml()
+        self.get_logger().info(frames_yaml)
+
+        # Or as a string
+        frames_str = self.tf_buffer.all_frames_as_string()
+        self.get_logger().info(frames_str)
+
         for pose in poses:
             # pose.pose.position.z = -1*pose.pose.position.z
             transformedPose = self.map_to_baselink(pose)
+            temp=transformedPose.pose.position.z
+            transformedPose.pose.position.z = -1*transformedPose.pose.position.x  # Maintain 1m altitude above ground
+            transformedPose.pose.position.x = -1*temp
             self.goal_publisher.publish(transformedPose)
             self.get_logger().info(f"Published goal pose: ({transformedPose.pose.position.x:.2f}, {transformedPose.pose.position.y:.2f}, {transformedPose.pose.position.z:.2f})")
+            
+            # self.goal_publisher.publish(pose)
+            # self.get_logger().info(f"Published goal pose: ({pose.pose.position.x:.2f}, {pose.pose.position.y:.2f}, {pose.pose.position.z:.2f})")
             time.sleep(1)
 
     def get_plan(self,Start, End, tolerance=0.5, frame_id="map"):
@@ -430,7 +449,7 @@ class MapClient(Node):
 
             # Extract x, y from path
             x_vals = [pose.pose.position.x for pose in common_poses]
-            y_vals = [pose.pose.position.z for pose in common_poses]
+            y_vals = [pose.pose.position.y for pose in common_poses]
 
             # x_vals = [pose[0] for pose in sorted_common_poses]
             # y_vals = [pose[1] for pose in sorted_common_poses]
@@ -445,8 +464,8 @@ class MapClient(Node):
             #     if i % 10 == 0:
             #         plt.plot(x, y, 'ko')  # black dots
             # Plot start and end
-            plt.scatter(Start.position.x, Start.position.z, c='green', s=100, label='Start')
-            plt.scatter(End.position.x, End.position.z, c='red', s=100, label='Goal')
+            plt.scatter(Start.position.x, Start.position.y, c='green', s=100, label='Start')
+            plt.scatter(End.position.x, End.position.y, c='red', s=100, label='Goal')
 
             plt.title("RTAB-Map Global Path")
             plt.xlabel("X")
