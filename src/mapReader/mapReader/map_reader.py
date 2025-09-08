@@ -11,19 +11,19 @@ from rclpy.client import Client
 from rclpy.task import Future
 from rtabmap_msgs.srv import GetMap as GetMapDataSrv  # Not nav_msgs GetMap
 from nav_msgs.srv import GetMap as GetOccupancyMapSrv
-from mpl_toolkits.mplot3d import Axes3D
+# from mpl_toolkits.mplot3d import Axes3D
 from nav_msgs.srv import GetPlan
 from geometry_msgs.msg import PoseStamped
 from builtin_interfaces.msg import Time
 import math
-from tf_transformations import quaternion_from_euler  # If not available, use tf2 or custom method
+# from tf_transformations import quaternion_from_euler  # If not available, use tf2 or custom method
 from nav2_simple_commander.robot_navigator import BasicNavigator
+import time
 
-
-def compute_orientation(from_point, to_point):
-    yaw = math.atan2(to_point.y - from_point.y, to_point.x - from_point.x)
-    q = quaternion_from_euler(0, 0, yaw)
-    return q  # (x, y, z, w)
+# def compute_orientation(from_point, to_point):
+#     yaw = math.atan2(to_point.y - from_point.y, to_point.x - from_point.x)
+#     q = quaternion_from_euler(0, 0, yaw)
+#     return q  # (x, y, z, w)
 
 def pose_stamped_to_tuple(pose_stamped):
     pos = pose_stamped.pose.position
@@ -55,6 +55,11 @@ class MapClient(Node):
         #     self.get_logger().info('Waiting for /rtabmap/rtabmap/get_plan...')
         # self.send_request()
         # self.get_logger().info('Calling both services...')
+        self.goal_publisher = self.create_publisher(
+            PoseStamped,
+            '/goal_pose', # The topic your NonlinearController listens to
+            10
+        )
 
     def send_request(self):
         self.req = GetMap.Request()
@@ -264,7 +269,8 @@ class MapClient(Node):
             self.visualize_map(data)
             self.plot_map_graph(data.graph)
             # self.get_logger().info(data.graph.poses[0].position)
-            poses = self.get_plan(data.graph.poses[0],data.graph.poses[4],tolerance=0.1,frame_id='map')
+            poses = self.get_plan(data.graph.poses[0],data.graph.poses[-1],tolerance=0.1,frame_id='map')
+            self.publish_poses(poses)
             # path_follower = PathFollower()
             # path_follower.navigate_path(poses,data.graph.poses[0])
             # intial = PoseStamped()
@@ -286,7 +292,14 @@ class MapClient(Node):
 
         except Exception as e:
             self.get_logger().error(f"Failed to get map data: {e}")
-    
+   
+    def publish_poses(self,poses):
+        for pose in poses:
+            pose.pose.position.z = -1*pose.pose.position.z
+            self.goal_publisher.publish(pose)
+            self.get_logger().info(f"Published goal pose: ({pose.pose.position.x:.2f}, {pose.pose.position.y:.2f}, {pose.pose.position.z:.2f})")
+            time.sleep(1)
+
     def get_plan(self,Start, End, tolerance=0.5, frame_id="map"):
         req = GetPlan.Request()
 
