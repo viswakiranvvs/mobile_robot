@@ -301,18 +301,34 @@ class MapClient(Node):
     def map_to_baselink(self, msg: PoseStamped):
         try:
             # Transform pose from "map" → "drone_base_link"
-            target_frame = 'drone_base_link'
+            # target_frame = 'drone_base_link'
             # Inside your ROS2 node
-            
-            transformed_pose = self.tf_buffer.transform(
+            odom_frame = 'odom'
+            base_link_frame = 'drone_base_link'
+            map_frame = 'map'
+            camera_frame = 'Camera_OmniVision_OV9782_Color'
+
+            map_to_odom_pose = self.tf_buffer.transform(
                 msg,
-                target_frame,
+                base_link_frame,
                 timeout=rclpy.duration.Duration(seconds=0.5)
             )
+
+            # odom_to_camera_pose = self.tf_buffer.transform(
+            #     map_to_odom_pose,
+            #     camera_frame,
+            #     timeout=rclpy.duration.Duration(seconds=0.5)
+            # )
+            
+            # transformed_pose = self.tf_buffer.transform(
+            #     msg,
+            #     target_frame,
+            #     timeout=rclpy.duration.Duration(seconds=0.5)
+            # )
             # self.get_logger().info(
             #     f"Pose in {target_frame}: {transformed_pose.pose.position}"
             # )
-            return transformed_pose
+            return map_to_odom_pose
         except Exception as e:
             self.get_logger().warn(f"Transform failed: {str(e)}")
    
@@ -330,9 +346,9 @@ class MapClient(Node):
         for pose in poses:
             # pose.pose.position.z = -1*pose.pose.position.z
             transformedPose = self.map_to_baselink(pose)
-            temp=transformedPose.pose.position.z
-            transformedPose.pose.position.z = -1*transformedPose.pose.position.x  # Maintain 1m altitude above ground
-            transformedPose.pose.position.x = -1*temp
+            # temp=transformedPose.pose.position.z
+            # transformedPose.pose.position.z = -1*transformedPose.pose.position.x  # Maintain 1m altitude above ground
+            # transformedPose.pose.position.x = -1*temp
             self.goal_publisher.publish(transformedPose)
             self.get_logger().info(f"Published goal pose: ({transformedPose.pose.position.x:.2f}, {transformedPose.pose.position.y:.2f}, {transformedPose.pose.position.z:.2f})")
             
@@ -445,7 +461,7 @@ class MapClient(Node):
             # common_poses.insert(0)
 
             for pose in reversed(common_poses):
-                print(pose.pose.position.x,pose.pose.position.y)
+                print(pose.pose.position.x,pose.pose.position.y,pose.pose.position.z)
 
             # Extract x, y from path
             x_vals = [pose.pose.position.x for pose in common_poses]
