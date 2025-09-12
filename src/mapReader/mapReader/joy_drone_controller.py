@@ -29,8 +29,8 @@ class JoystickController(Node):
         
         # Initialize the current target position
         self.current_pose = PoseStamped()
-        self.current_pose.pose.position = Point(x=0.0, y=0.0, z=2.0) # Start at 2m altitude
-        self.current_pose.pose.orientation = Quaternion(x=0.0, y=0.0, z=0.0, w=1.0) # Default orientation
+        self.current_pose.pose.position = Point(x=0.0, y=0.0, z=0.0) # Start at 2m altitude
+        self.current_pose.pose.orientation = Quaternion(x=0.0, y=0.0, z=0.0, w=0.0) # Default orientation
         self.current_pose.header.frame_id = 'world'
         
         # Control parameters (adjust these for sensitivity)

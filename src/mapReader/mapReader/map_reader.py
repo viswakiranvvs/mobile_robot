@@ -4,6 +4,8 @@ import rclpy
 from rclpy.node import Node
 from nav_msgs.srv import GetMap
 import numpy as np
+if not hasattr(np, 'float'):
+    np.float = float
 import matplotlib.pyplot as plt
 import cv2
 from rclpy.node import Node
@@ -21,6 +23,8 @@ from nav2_simple_commander.robot_navigator import BasicNavigator
 import time
 from tf2_ros import Buffer, TransformListener
 import tf2_geometry_msgs 
+import tf_transformations
+
 # def compute_orientation(from_point, to_point):
 #     yaw = math.atan2(to_point.y - from_point.y, to_point.x - from_point.x)
 #     q = quaternion_from_euler(0, 0, yaw)
@@ -298,6 +302,63 @@ class MapClient(Node):
         except Exception as e:
             self.get_logger().error(f"Failed to get map data: {e}")
 
+
+
+    def transform_pose(self, msg: PoseStamped) -> PoseStamped:
+        R_map_to_odom = np.array([
+            [0, -1,  0],
+            [0,  0, -1],
+            [1,  0,  0]
+        ])
+        # Extract translation
+        t = np.array([msg.pose.position.x,
+                    msg.pose.position.y,
+                    msg.pose.position.z])
+
+        # Apply rotation to translation
+        t_new = np.dot(t,R_map_to_odom)
+
+        # Extract quaternion
+        q = [msg.pose.orientation.x,
+            msg.pose.orientation.y,
+            msg.pose.orientation.z,
+            msg.pose.orientation.w]
+
+        # Convert quaternion to rotation matrix
+        R_q = tf_transformations.quaternion_matrix(q)[0:3, 0:3]
+
+        R_new = R_map_to_odom @ R_q
+
+        # Convert back to quaternion
+        T_new = np.eye(4)
+        T_new[0:3, 0:3] = R_new
+        q_new = tf_transformations.quaternion_from_matrix(T_new)
+
+        # Apply extra rotation
+        # R_new = np.dot(R_q, R_map_to_odom) # R_map_to_odom @ R_q
+
+        # # Convert back to quaternion
+        # q_new = tf_transformations.quaternion_from_matrix(
+        #     np.block([
+        #         [R_new, np.zeros((3,1))],
+        #         [np.zeros((1,3)), np.array([[1]])]
+        #     ])
+        # )
+
+        # Build new PoseStamped
+        out = PoseStamped()
+        out.header = msg.header
+        out.header.frame_id = "odom"   # or base_link_frame
+        out.pose.position.x = t_new[0]
+        out.pose.position.y = t_new[1]
+        out.pose.position.z = t_new[2]
+        out.pose.orientation.x = q_new[0]
+        out.pose.orientation.y = q_new[1]
+        out.pose.orientation.z = q_new[2]
+        out.pose.orientation.w = q_new[3]
+
+        return out
+
     def map_to_baselink(self, msg: PoseStamped):
         try:
             # Transform pose from "map" → "drone_base_link"
@@ -307,6 +368,13 @@ class MapClient(Node):
             base_link_frame = 'drone_base_link'
             map_frame = 'map'
             camera_frame = 'Camera_OmniVision_OV9782_Color'
+
+
+            R = np.array([
+                [0, -1,  0],
+                [0,  0, -1],
+                [1,  0,  0]
+            ])
 
             map_to_odom_pose = self.tf_buffer.transform(
                 msg,
@@ -345,7 +413,7 @@ class MapClient(Node):
 
         for pose in poses:
             # pose.pose.position.z = -1*pose.pose.position.z
-            transformedPose = self.map_to_baselink(pose)
+            transformedPose = self.transform_pose(pose)
             # temp=transformedPose.pose.position.z
             # transformedPose.pose.position.z = -1*transformedPose.pose.position.x  # Maintain 1m altitude above ground
             # transformedPose.pose.position.x = -1*temp
@@ -498,7 +566,7 @@ def main(args=None):
     rclpy.init(args=args)
     map_client = MapClient()
     # map_client.send_request()
-    map_client.call_get_occupancy_map()
+    # map_client.call_get_occupancy_map()
     map_client.call_get_map_data()
     # map_client.handle_map_data_response(None,True)
     map_client.destroy_node()
