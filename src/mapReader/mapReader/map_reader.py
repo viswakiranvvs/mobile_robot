@@ -35,6 +35,7 @@ from cv_bridge import CvBridge
 import numpy as np
 from typing import List, Optional 
 import tf_transformations
+from mapReader.yolo_class import LightweightYolo
 
 # def compute_orientation(from_point, to_point):
 #     yaw = math.atan2(to_point.y - from_point.y, to_point.x - from_point.x)
@@ -57,6 +58,8 @@ class MapClient(Node):
         # Create client for occupancy map
         self.occ_map_client = self.create_client(GetOccupancyMapSrv, '/rtabmap/rtabmap/get_map')
         self.cli = self.occ_map_client
+        self.yolo = LightweightYolo(model_path="yolov8n.pt", device="cpu", conf=0.35, imgsz=640)
+
         # while not self.occ_map_client.wait_for_service(timeout_sec=1.0):
         #     self.get_logger().info('Waiting for Occupancy Map service...')
 
@@ -323,6 +326,8 @@ class MapClient(Node):
                 self.get_logger().info(f'left comp shape: {np_arr.shape}')
                 cv_image = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
                 self.get_logger().info(f'left cv shape: {cv_image.shape}')
+                detections, annotated = self.yolo.detect(cv_image, return_image=True)
+                self.get_logger().info(f"Detections for node {node_data.id}: {detections}")
                 images.append(('RGB Image Compressed (Left)', cv_image))
             except Exception as e:
                 self.get_logger().warn(f'Failed to decode RGB Compressed image: {str(e)}')
