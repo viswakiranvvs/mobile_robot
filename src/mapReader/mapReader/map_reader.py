@@ -22,7 +22,18 @@ import math
 from nav2_simple_commander.robot_navigator import BasicNavigator
 import time
 from tf2_ros import Buffer, TransformListener
-import tf2_geometry_msgs 
+import tf2_geometry_msgs
+from cv_bridge import CvBridge
+# Import the service and message types
+from sensor_msgs.msg import Image
+
+from rtabmap_msgs.srv import GetNodeData
+from rtabmap_msgs.msg import Node as NodeData
+from geometry_msgs.msg import Pose
+from sensor_msgs.msg import Image, CompressedImage
+from cv_bridge import CvBridge
+import numpy as np
+from typing import List, Optional 
 import tf_transformations
 
 # def compute_orientation(from_point, to_point):
@@ -55,6 +66,7 @@ class MapClient(Node):
         #     self.get_logger().info('Waiting for Map Data service...')
 
         self.get_plan_client = self.create_client(GetPlan, '/rtabmap/rtabmap/get_plan')
+
         self.navigator = BasicNavigator()
 
         self.tf_buffer = Buffer()
@@ -69,6 +81,39 @@ class MapClient(Node):
             '/goal_pose', # The topic your NonlinearController listens to
             10
         )
+
+        self.get_node_info_client = self.create_client(GetNodeData, "/rtabmap/rtabmap/get_node_data")
+
+        # while not self.client.wait_for_service(timeout_sec=1.0):
+        #     self.get_logger().info("Service not available, waiting...")
+
+        # self.req = GetNodeData.Request()
+
+    def get_node_data(self, node_ids: List[int]) -> Optional[List[NodeData]]:
+        """Get node data for specified node IDs"""
+        try:
+            request = GetNodeData.Request()
+            request.ids = node_ids
+            request.images = True      # Request images
+            request.scan = False       # Don't request scan data
+            request.grid = False       # Don't request grid data
+            request.user_data = False  # Don't request user data
+            
+            future = self.get_node_info_client.call_async(request)
+            rclpy.spin_until_future_complete(self, future)
+            response = future.result()
+            if response is not None:
+                return response.data
+            # if future.done():
+            #     response = future.result()
+            #     return response.data
+            # else:
+            #     self.get_logger().warn('Service call did not complete')
+            #     return None
+                
+        except Exception as e:
+            self.get_logger().error(f'Error calling service: {str(e)}')
+            return None
 
     def send_request(self):
         self.req = GetMap.Request()
@@ -253,6 +298,105 @@ class MapClient(Node):
         with open(path, "rb") as f:
             data = pickle.load(f)
         return data
+    
+    def extract_images(self, node_data: NodeData) -> List[np.ndarray]:
+        """Extract and decode images from node data"""
+        images = []
+        
+            # Initialize CV bridge if not already done
+        if not hasattr(self, 'bridge'):
+            self.bridge = CvBridge()
+        
+        # Extract left image (RGB)
+        # if node_data.data.left:
+        #     try:
+        #         node_data.data.left.encoding = "bgr8"
+        #         self.get_logger().info(f'Encoding: {node_data.data.left.encoding}')
+        #         cv_image = self.bridge.imgmsg_to_cv2(node_data.data.left, "bgr8")
+        #         images.append(('RGB Image (Left)', cv_image))
+        #     except Exception as e:
+        #         self.get_logger().warn(f'Failed to decode RGB image: {str(e)}')
+        
+        if node_data.data.left_compressed:
+            try:
+                np_arr = np.frombuffer(node_data.data.left_compressed, np.uint8)
+                self.get_logger().info(f'left comp shape: {np_arr.shape}')
+                cv_image = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+                self.get_logger().info(f'left cv shape: {cv_image.shape}')
+                images.append(('RGB Image Compressed (Left)', cv_image))
+            except Exception as e:
+                self.get_logger().warn(f'Failed to decode RGB Compressed image: {str(e)}')
+        
+        if node_data.data.right_compressed:
+            self.get_logger().info(f'right comp: {type(node_data.data.right_compressed)}')
+            try:
+                np_arr = np.frombuffer(node_data.data.right_compressed, np.uint8)
+                self.get_logger().info(f'right comp shape: {np_arr.shape}')
+                cv_image = cv2.imdecode(np_arr, cv2.IMREAD_UNCHANGED)
+                self.get_logger().info(f'right cv shape: {cv_image.shape}')
+                images.append(('Depth Image Compressed (Right)', cv_image))
+            except Exception as e:
+                self.get_logger().warn(f'Failed to decode Depth Compressed image: {str(e)}')
+        
+        # Extract right image (Depth)
+        # if node_data.data.right:
+        #     self.get_logger().info(f'right depth: {type(node_data.data.right)}')
+        #     self.get_logger().info(f'right depth shape: {(node_data.data.right.data.shape)}')
+        #     try:
+        #         node_data.data.right.encoding = "16UC1"
+        #         cv_depth = self.bridge.imgmsg_to_cv2(node_data.data.right, "passthrough")
+        #         # Normalize depth image for visualization
+        #         if cv_depth.dtype == np.uint16:
+        #             cv_depth_normalized = cv2.normalize(cv_depth, None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U)
+        #             images.append(('Depth Image (Right)', cv_depth_normalized))
+        #         else:
+        #             images.append(('Depth Image (Right)', cv_depth))
+        #     except Exception as e:
+        #         self.get_logger().warn(f'Failed to decode depth image: {str(e)}')
+        
+        # Display each image individually
+        if not images:
+            self.get_logger().warn(f'No images found for node {node_data.id}')
+            return
+        
+        self.get_logger().info(f'Found {len(images)} images for node {node_data.id}')
+        
+        for title, image in images:
+            # Create window with node ID in title
+            if image is None or image.size == 0:
+                self.get_logger().warn(f"Skipping empty image for {title}")
+                continue
+            window_name = f'Node {node_data.id}: {title}'
+            cv2.imshow(window_name, image)
+            # cv2.waitKey(0)  # Short delay to allow window creation
+        
+        # Wait for key press before closing
+        self.get_logger().info('Press any key to close images...')
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+        
+        return images
+
+        
+        # return images
+        # Extract compressed images if available
+        # if node_data.data.image_compressed.format:
+        #     try:
+        #         cv_image = self.bridge.compressed_imgmsg_to_cv2(node_data.data.image_compressed, "bgr8")
+        #         images.append(('Compressed RGB', cv_image))
+        #     except Exception as e:
+        #         self.get_logger().warn(f'Failed to decode compressed RGB image: {str(e)}')
+        
+        # if node_data.data.depth_compressed.format:
+        #     try:
+        #         cv_depth = self.bridge.compressed_imgmsg_to_cv2(node_data.data.depth_compressed, "passthrough")
+        #         if cv_depth.dtype == np.uint16:
+        #             cv_depth_normalized = cv2.normalize(cv_depth, None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U)
+        #             images.append(('Compressed Depth', cv_depth_normalized))
+        #     except Exception as e:
+        #         self.get_logger().warn(f'Failed to decode compressed depth image: {str(e)}')
+        
+        return images
 
     def handle_map_data_response(self, future=None, dummy=False):
         try:
@@ -268,8 +412,24 @@ class MapClient(Node):
 
             # You can access the graph and node info like:
             # print(data.nodes[0])
-            # for i, node in enumerate(data.nodes[:5]):
-            #     self.get_logger().info(f"Node {node.id}: pose = {node.pose}") # {node.pose.pose.position.y}
+            node_ids = []
+            for i, node in enumerate(data.nodes):
+                self.get_logger().info(f"Node {node.id}: pose = {node.pose}") # {node.pose.pose.position.y}
+                node_ids.append(node.id)
+            
+            node_data_list = self.get_node_data(node_ids)
+        
+            if not node_data_list:
+                self.get_logger().error('Failed to get node data')
+                return
+            
+            all_images = []
+            for i, node_data in enumerate(node_data_list):
+                self.get_logger().info(f'Node {i}: ID={node_data.id}, Map ID={node_data.map_id}')
+                images = self.extract_images(node_data)
+                all_images.append(images)
+            
+            self.get_logger().info(f'\nLength of images: {len(all_images)}\n')
 
             # for i in range(0,5):
             #     self.get_logger().info(f"Pose Id {data.graph.poses_id[i]}")
@@ -278,8 +438,8 @@ class MapClient(Node):
             self.visualize_map(data)
             self.plot_map_graph(data.graph)
             # self.get_logger().info(data.graph.poses[0].position)
-            poses = self.get_plan(data.graph.poses[0],data.graph.poses[-1],tolerance=0.1,frame_id='map')
-            self.publish_poses(poses)
+            # poses = self.get_plan(data.graph.poses[0],data.graph.poses[-1],tolerance=0.1,frame_id='map')
+            # self.publish_poses(poses)
             # path_follower = PathFollower()
             # path_follower.navigate_path(poses,data.graph.poses[0])
             # intial = PoseStamped()
@@ -566,6 +726,7 @@ def main(args=None):
     rclpy.init(args=args)
     map_client = MapClient()
     # map_client.send_request()
+    # map_client.call_get_occupancy_map()
     # map_client.call_get_occupancy_map()
     map_client.call_get_map_data()
     # map_client.handle_map_data_response(None,True)

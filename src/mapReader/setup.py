@@ -11,7 +11,11 @@ setup(
             ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
     ],
-    install_requires=['setuptools'],
+    install_requires=['setuptools'
+                      'rclpy',
+                    'cv_bridge',
+                    'numpy',
+                    'opencv-python'],
     zip_safe=True,
     maintainer='robotics-pc-20',
     maintainer_email='viswachintu425@gmail.com',
