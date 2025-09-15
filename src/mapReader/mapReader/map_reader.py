@@ -328,7 +328,7 @@ class MapClient(Node):
                 self.get_logger().info(f'left cv shape: {cv_image.shape}')
                 detections, annotated = self.yolo.detect(cv_image, return_image=True)
                 self.get_logger().info(f"Detections for node {node_data.id}: {detections}")
-                images.append(('RGB Image Compressed (Left)', cv_image))
+                images.append(('RGB Image Compressed (Left)', annotated))
             except Exception as e:
                 self.get_logger().warn(f'Failed to decode RGB Compressed image: {str(e)}')
         
@@ -366,19 +366,20 @@ class MapClient(Node):
         
         self.get_logger().info(f'Found {len(images)} images for node {node_data.id}')
         
-        for title, image in images:
-            # Create window with node ID in title
-            if image is None or image.size == 0:
-                self.get_logger().warn(f"Skipping empty image for {title}")
-                continue
-            window_name = f'Node {node_data.id}: {title}'
-            cv2.imshow(window_name, image)
-            # cv2.waitKey(0)  # Short delay to allow window creation
+        # for title, image in images:
+        #     # Create window with node ID in title
+        #     if image is None or image.size == 0:
+        #         self.get_logger().warn(f"Skipping empty image for {title}")
+        #         continue
+        #     window_name = f'Node {node_data.id}: {title}'
+        #     cv2.imshow(window_name, image)
+        #     break
+        #     # cv2.waitKey(0)  # Short delay to allow window creation
         
-        # Wait for key press before closing
-        self.get_logger().info('Press any key to close images...')
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
+        # # Wait for key press before closing
+        # self.get_logger().info('Press any key to close images...')
+        # cv2.waitKey(0)
+        # cv2.destroyAllWindows()
         
         return images
 
@@ -443,26 +444,8 @@ class MapClient(Node):
             self.visualize_map(data)
             self.plot_map_graph(data.graph)
             # self.get_logger().info(data.graph.poses[0].position)
-            # poses = self.get_plan(data.graph.poses[0],data.graph.poses[-1],tolerance=0.1,frame_id='map')
+            poses = self.get_plan(data.graph.poses[0],data.graph.poses[-1],tolerance=0.1,frame_id='map')
             # self.publish_poses(poses)
-            # path_follower = PathFollower()
-            # path_follower.navigate_path(poses,data.graph.poses[0])
-            # intial = PoseStamped()
-            # intial.header.frame_id = "map"
-            # intial.pose.position.x = data.graph.poses[0].position.x
-            # intial.pose.position.y = data.graph.poses[0].position.y
-            # intial.pose.position.z = data.graph.poses[0].position.z
-
-            # intial.pose.orientation.x = data.graph.poses[0].orientation.x
-            # intial.pose.orientation.y = data.graph.poses[0].orientation.y
-            # intial.pose.orientation.z = data.graph.poses[0].orientation.z
-            # intial.pose.orientation.w = data.graph.poses[0].orientation.w
-            # print(type(data.graph.poses[0]))
-            # print(type(poses[0]))
-            # print(type(poses[0].pose))
-            # self.navigator.setInitialPose(intial)
-            # self.navigator.waitUntilNav2Active()
-            # self.navigator.followWaypoints(poses)
 
         except Exception as e:
             self.get_logger().error(f"Failed to get map data: {e}")
@@ -492,12 +475,14 @@ class MapClient(Node):
         # Convert quaternion to rotation matrix
         R_q = tf_transformations.quaternion_matrix(q)[0:3, 0:3]
 
-        R_new = R_map_to_odom @ R_q
+        # R_new = R_map_to_odom @ R_q
+        R_new = np.dot(R_q, R_map_to_odom) # R_map_to_odom @ R_q
 
         # Convert back to quaternion
         T_new = np.eye(4)
         T_new[0:3, 0:3] = R_new
         q_new = tf_transformations.quaternion_from_matrix(T_new)
+        q_new = [q[0], q[2], -1*q[1], q[3]]
 
         # Apply extra rotation
         # R_new = np.dot(R_q, R_map_to_odom) # R_map_to_odom @ R_q
@@ -584,7 +569,7 @@ class MapClient(Node):
             # transformedPose.pose.position.x = -1*temp
             self.goal_publisher.publish(transformedPose)
             self.get_logger().info(f"Published goal pose: ({transformedPose.pose.position.x:.2f}, {transformedPose.pose.position.y:.2f}, {transformedPose.pose.position.z:.2f})")
-            
+            self.get_logger().info(f"Orientation: ({transformedPose.pose.orientation.x:.2f}, {transformedPose.pose.orientation.y:.2f}, {transformedPose.pose.orientation.z:.2f}, {transformedPose.pose.orientation.w:.2f})")
             # self.goal_publisher.publish(pose)
             # self.get_logger().info(f"Published goal pose: ({pose.pose.position.x:.2f}, {pose.pose.position.y:.2f}, {pose.pose.position.z:.2f})")
             time.sleep(1)
@@ -695,7 +680,8 @@ class MapClient(Node):
 
             for pose in reversed(common_poses):
                 print(pose.pose.position.x,pose.pose.position.y,pose.pose.position.z)
-
+                print(pose.pose.orientation.x,pose.pose.orientation.y,pose.pose.orientation.z,pose.pose.orientation.w)
+                print("====")
             # Extract x, y from path
             x_vals = [pose.pose.position.x for pose in common_poses]
             y_vals = [pose.pose.position.y for pose in common_poses]

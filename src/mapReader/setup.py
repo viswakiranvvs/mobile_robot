@@ -15,6 +15,7 @@ setup(
                       'rclpy',
                     'cv_bridge',
                     'numpy',
+                    'ultralytics',
                     'opencv-python'],
     zip_safe=True,
     maintainer='robotics-pc-20',
