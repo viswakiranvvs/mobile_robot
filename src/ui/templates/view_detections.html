@@ -35,6 +35,9 @@
     <h2>All Detected Images</h2>
     {% for node_id, classes in node_images.items() %}
         <h2>Node {{ node_id }}</h2>
+        <form action="{{ url_for('navigate_to_node', node_id=node_id) }}" method="post" style="margin-bottom:20px;">
+            <button type="submit">Navigate to Node {{ node_id }}</button>
+        </form>
         {% for class_name, detections in classes.items() %}
         <h3>Class: {{ class_name }}</h3>
         <div class="detections-row">

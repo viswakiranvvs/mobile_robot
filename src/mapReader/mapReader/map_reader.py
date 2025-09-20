@@ -1,3 +1,4 @@
+import argparse
 import pickle
 import threading
 # from mapReader.map_ui import MapUI
@@ -767,6 +768,13 @@ class MapClient(Node):
             self.get_logger().error("Service call failed")
 
 def main(args=None):
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--mode", type=str, default="normal")
+    parser.add_argument("--node", type=int, default=-1)
+    args = parser.parse_args()
+
+    print("Mode:", args.mode)
+    print("Count:", args.node)
     rclpy.init(args=args)
     map_client = MapClient()
     # ui = MapUI(map_client)

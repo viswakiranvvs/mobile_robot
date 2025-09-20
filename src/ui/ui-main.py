@@ -1,5 +1,6 @@
 import json
 from flask import Flask, render_template, request, jsonify
+from flask import request, redirect, url_for
 import subprocess
 
 
@@ -24,6 +25,17 @@ def run_mapreader():
         return jsonify({"status": "success", "message": "Triggered mapReader"})
     except subprocess.CalledProcessError as e:
         return jsonify({"status": "error", "message": e.stderr})
+
+@app.route('/navigate/<node_id>', methods=['POST'])
+def navigate_to_node(node_id):
+    # Call your navigation function here
+    # Example: navigate_to(node_id)
+    print(f"Navigate to node {node_id}")
+    args = ["ros2", "run", "mapReader", "map_reader", "--mode", "navigate", "--node", node_id]
+    process = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        
+    # Redirect back to detections page or wherever you want
+    return redirect(url_for('view_detections'))
 
 @app.route('/view_detections')
 def view_detections():
