@@ -1,6 +1,21 @@
 <html>
 <head>
   <title>View Detections</title>
+  <style>
+    .detections-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+    .detection-card {
+      border: 1px solid #ccc;
+      padding: 10px;
+      text-align: center;
+      width: 420px;
+      background: #f9f9f9;
+    }
+  </style>
 </head> 
 <body>
   <h1>Detections</h1>
@@ -16,11 +31,32 @@
     <h2>Pose Graph</h2>
     <img src="detections/pose_graph.png" alt="Pose Graph" width="600">
   </div>
-  {% for img in images %}
-    <div>
-      <img src="{{ img }}" alt="Detection Image" width="600">
-    </div>
-  {% endfor %}
+  <div>
+    <h2>All Detected Images</h2>
+    {% for node_id, classes in node_images.items() %}
+        <h2>Node {{ node_id }}</h2>
+        {% for class_name, detections in classes.items() %}
+        <h3>Class: {{ class_name }}</h3>
+        <div class="detections-row">
+            {% for det in detections %}
+            <div class="detection-card">
+                <img src="{{ det.file }}" alt="{{ class_name }}" width="200">
+                <p>Confidence: {{ det.confidence }}</p>
+                <p>BBox: {{ det.bbox }}</p>
+            </div>
+            {% endfor %}
+        </div>
+        <!-- {% for det in detections %}
+            <div>
+            <img src="{{ det.file }}" alt="{{ class_name }}" width="400">
+            <p>Confidence: {{ det.confidence }}</p>
+            <p>BBox: {{ det.bbox }}</p>
+            </div>
+        {% endfor %} -->
+        {% endfor %}
+    {% endfor %}
+  </div>
+
   <!-- <div>
     <h2>Map Data File</h2>
     <a href="/static/detections/map_data.pkl" download>Download map_data.pkl</a>

@@ -1,3 +1,4 @@
+import json
 from flask import Flask, render_template, request, jsonify
 import subprocess
 
@@ -29,12 +30,14 @@ def view_detections():
     # Display saved detection images
     import os
     image_folder = 'detections'
-    images = [img for img in os.listdir(image_folder) if img.endswith(('.png', '.jpg', '.jpeg'))]
-    image_paths = []
-    for img in images:
-        if img not in ['3d_map.png', 'pose_graph.png', 'occupancy_grid.png', 'map_data.pkl']:
-            image_paths.append(os.path.join(image_folder, img))
-    return render_template('view_detections.html', images=image_paths)
+    with open("detections/node_images.json", "r") as f:
+        all_images = json.load(f)
+    # images = [img for img in os.listdir(image_folder) if img.endswith(('.png', '.jpg', '.jpeg'))]
+    # image_paths = []
+    # for img in images:
+    #     if img not in ['3d_map.png', 'pose_graph.png', 'occupancy_grid.png', 'map_data.pkl']:
+    #         image_paths.append(os.path.join(image_folder, img))
+    return render_template('view_detections.html', node_images=all_images)
 
 if __name__ == '__main__':
     app.run(debug=True)

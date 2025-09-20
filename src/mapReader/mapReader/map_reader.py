@@ -338,7 +338,11 @@ class MapClient(Node):
 
             # Optionally save each detection
             filename = f"detections/detection_{node_id}_{i}_{class_name}_.jpg"
-            images_dict[class_name].append(det["bbox"]) if class_name in images_dict else images_dict.update({class_name:[det["bbox"]]})
+            temp_dict = dict()
+            temp_dict["bbox"] = det["bbox"]
+            temp_dict["confidence"] = det["confidence"]
+            temp_dict["file"] = filename
+            images_dict[class_name].append(temp_dict) if class_name in images_dict else images_dict.update({class_name:[temp_dict]})
             cv2.imwrite(filename, cropped)
 
             # Or just display
@@ -477,7 +481,8 @@ class MapClient(Node):
             for i, node_data in enumerate(node_data_list):
                 self.get_logger().info(f'Node {i}: ID={node_data.id}, Map ID={node_data.map_id}')
                 images_dict = self.extract_images(node_data)
-                all_images[node_data.id]=images_dict
+                if len(images_dict)>0:
+                    all_images[node_data.id]=images_dict
                 # all_images.append(images)
             
             with open("detections/node_images.json", "w") as f:
