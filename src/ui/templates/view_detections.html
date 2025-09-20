@@ -16,6 +16,11 @@
     <h2>Pose Graph</h2>
     <img src="detections/pose_graph.png" alt="Pose Graph" width="600">
   </div>
+  {% for img in images %}
+    <div>
+      <img src="{{ img }}" alt="Detection Image" width="600">
+    </div>
+  {% endfor %}
   <!-- <div>
     <h2>Map Data File</h2>
     <a href="/static/detections/map_data.pkl" download>Download map_data.pkl</a>

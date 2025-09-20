@@ -198,16 +198,34 @@ class MapClient(Node):
         self.handle_occupancy_response(future)
         # future.add_done_callback(self.handle_occupancy_response)
 
-    def call_get_map_data(self):
+    def call_get_map_data(self, retries=3, timeout_sec=10.0):
         request = GetMapDataSrv.Request()
         request.global_map = True
         request.optimized = True
         request.graph_only = False
-        self.get_logger().info("Calling Map Data Service")
-        future = self.map_data_client.call_async(request)
-        rclpy.spin_until_future_complete(self, future)
-        self.get_logger().info("Received, calling handler")
-        self.handle_map_data_response(future,False)
+
+        for attempt in range(retries):
+            self.get_logger().info(f"Calling Map Data Service (attempt {attempt+1}/{retries})")
+
+            future = self.map_data_client.call_async(request)
+
+            start = time.time()
+            while not future.done() and (time.time() - start) < timeout_sec:
+                rclpy.spin_once(self, timeout_sec=0.1)
+
+            if future.done():
+                try:
+                    response = future.result()
+                    self.get_logger().info("Received, calling handler")
+                    self.handle_map_data_response(future, False)
+                    return response
+                except Exception as e:
+                    self.get_logger().error(f"Service call failed: {e}")
+            else:
+                self.get_logger().warn("Timeout waiting for response, retrying...")
+
+        self.get_logger().error("All retries failed, service unavailable.")
+        return None
         
         # future.add_done_callback(self.handle_map_data_response)
 
@@ -473,7 +491,7 @@ class MapClient(Node):
             self.visualize_map(data)
             self.plot_map_graph(data.graph)
             # self.get_logger().info(data.graph.poses[0].position)
-            poses = self.get_plan(data.graph.poses[0],data.graph.poses[-1],tolerance=0.1,frame_id='map')
+            # poses = self.get_plan(data.graph.poses[0],data.graph.poses[-1],tolerance=0.1,frame_id='map')
             # self.publish_poses(poses)
 
         except Exception as e:

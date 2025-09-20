@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, jsonify
 import subprocess
 
+
 app = Flask(__name__, static_folder='detections')
 app.add_url_rule('/detections/<path:filename>', endpoint='detections', view_func=app.send_static_file)
 @app.route('/')
@@ -29,7 +30,10 @@ def view_detections():
     import os
     image_folder = 'detections'
     images = [img for img in os.listdir(image_folder) if img.endswith(('.png', '.jpg', '.jpeg'))]
-    image_paths = [os.path.join(image_folder, img) for img in images]
+    image_paths = []
+    for img in images:
+        if img not in ['3d_map.png', 'pose_graph.png', 'occupancy_grid.png', 'map_data.pkl']:
+            image_paths.append(os.path.join(image_folder, img))
     return render_template('view_detections.html', images=image_paths)
 
 if __name__ == '__main__':
