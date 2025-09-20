@@ -1,4 +1,6 @@
 import pickle
+import threading
+# from mapReader.map_ui import MapUI
 from mapReader.pose_to_veloc import PathFollower
 import rclpy
 from rclpy.node import Node
@@ -26,7 +28,7 @@ import tf2_geometry_msgs
 from cv_bridge import CvBridge
 # Import the service and message types
 from sensor_msgs.msg import Image
-
+import json
 from rtabmap_msgs.srv import GetNodeData
 from rtabmap_msgs.msg import Node as NodeData
 from geometry_msgs.msg import Pose
@@ -185,7 +187,8 @@ class MapClient(Node):
         # OR matplotlib (if headless)
         plt.imshow(img, cmap='gray')
         plt.title("RTAB-Map Occupancy Grid")
-        plt.show()
+        plt.savefig("detections/occupancy_grid.png")
+        # plt.show()
     
     def call_get_occupancy_map(self):
         request = GetOccupancyMapSrv.Request()
@@ -261,7 +264,8 @@ class MapClient(Node):
         ax.set_title('RTAB-Map: Node Poses & 3D Landmarks')
         ax.legend()
         plt.tight_layout()
-        plt.show()
+        # plt.show()
+        plt.savefig("detections/3d_map.png")
 
     def plot_map_graph(self,graph):
         id_to_pose = {}  # Map from ID to (x, y) for fast lookup
@@ -295,17 +299,40 @@ class MapClient(Node):
         ax.legend()
         plt.grid(True)
         plt.tight_layout()
-        plt.show()
-
+        # plt.show()
+        plt.savefig("detections/pose_graph.png")
     def load_map_data(self,path="map_data.pkl"):
         with open(path, "rb") as f:
             data = pickle.load(f)
         return data
     
+    def extract_detected_images(self, node_id, detections, cv_image):
+        images_dict = dict()
+        for i, det in enumerate(detections):
+
+            x1, y1, x2, y2 = det["bbox"]  # bounding box
+            class_name = det["class_name"]
+            confidence = det["confidence"]
+            if confidence<=0.6:
+                continue
+            # Crop from original cv_image
+            cropped = cv_image[y1:y2, x1:x2]
+
+            # Optionally save each detection
+            filename = f"detections/detection_{node_id}_{i}_{class_name}_.jpg"
+            images_dict[class_name].append(det["bbox"]) if class_name in images_dict else images_dict.update({class_name:[det["bbox"]]})
+            cv2.imwrite(filename, cropped)
+
+            # Or just display
+            # cv2.imshow(f"Detection {i}", cropped)
+            # cv2.waitKey(0)
+        return images_dict
+
+    
     def extract_images(self, node_data: NodeData) -> List[np.ndarray]:
         """Extract and decode images from node data"""
         images = []
-        
+        # node_dict=dict()
             # Initialize CV bridge if not already done
         if not hasattr(self, 'bridge'):
             self.bridge = CvBridge()
@@ -328,10 +355,11 @@ class MapClient(Node):
                 self.get_logger().info(f'left cv shape: {cv_image.shape}')
                 detections, annotated = self.yolo.detect(cv_image, return_image=True)
                 self.get_logger().info(f"Detections for node {node_data.id}: {detections}")
+                images_dict = self.extract_detected_images(node_data.id,detections, cv_image)
                 images.append(('RGB Image Compressed (Left)', annotated))
             except Exception as e:
                 self.get_logger().warn(f'Failed to decode RGB Compressed image: {str(e)}')
-        
+        # node_dict[node_data.id]=images_dict
         if node_data.data.right_compressed:
             self.get_logger().info(f'right comp: {type(node_data.data.right_compressed)}')
             try:
@@ -342,7 +370,7 @@ class MapClient(Node):
                 images.append(('Depth Image Compressed (Right)', cv_image))
             except Exception as e:
                 self.get_logger().warn(f'Failed to decode Depth Compressed image: {str(e)}')
-        
+        # json_file = 
         # Extract right image (Depth)
         # if node_data.data.right:
         #     self.get_logger().info(f'right depth: {type(node_data.data.right)}')
@@ -381,7 +409,7 @@ class MapClient(Node):
         # cv2.waitKey(0)
         # cv2.destroyAllWindows()
         
-        return images
+        return images_dict
 
         
         # return images
@@ -402,8 +430,6 @@ class MapClient(Node):
         #     except Exception as e:
         #         self.get_logger().warn(f'Failed to decode compressed depth image: {str(e)}')
         
-        return images
-
     def handle_map_data_response(self, future=None, dummy=False):
         try:
             if dummy:
@@ -411,7 +437,7 @@ class MapClient(Node):
             else:
                 response = future.result()
                 data = response.data
-                save_path = "map_data.pkl"
+                save_path = "detections/map_data.pkl"
                 with open(save_path, "wb") as f:
                     pickle.dump(data, f)
             self.get_logger().info(f"Received MapData: {len(data.nodes)} nodes, {len(data.graph.poses)} graph poses")
@@ -429,12 +455,15 @@ class MapClient(Node):
                 self.get_logger().error('Failed to get node data')
                 return
             
-            all_images = []
+            all_images = dict()
             for i, node_data in enumerate(node_data_list):
                 self.get_logger().info(f'Node {i}: ID={node_data.id}, Map ID={node_data.map_id}')
-                images = self.extract_images(node_data)
-                all_images.append(images)
+                images_dict = self.extract_images(node_data)
+                all_images[node_data.id]=images_dict
+                # all_images.append(images)
             
+            with open("detections/node_images.json", "w") as f:
+                json.dump(all_images, f, indent=4)
             self.get_logger().info(f'\nLength of images: {len(all_images)}\n')
 
             # for i in range(0,5):
@@ -708,7 +737,8 @@ class MapClient(Node):
             plt.legend()
             plt.grid(True)
             plt.axis('equal')
-            plt.show()
+            plt.savefig("detections/planned_path.png")
+            # plt.show()
             return common_poses
         else:
             self.get_logger().error("Service call failed")
@@ -716,6 +746,9 @@ class MapClient(Node):
 def main(args=None):
     rclpy.init(args=args)
     map_client = MapClient()
+    # ui = MapUI(map_client)
+    # ui_thread = threading.Thread(target=ui.run)
+    # ui_thread.start()
     # map_client.send_request()
     # map_client.call_get_occupancy_map()
     # map_client.call_get_occupancy_map()
@@ -723,6 +756,7 @@ def main(args=None):
     # map_client.handle_map_data_response(None,True)
     map_client.destroy_node()
     rclpy.shutdown()
+    # ui_thread.join()
 
 if __name__ == '__main__':
     main()

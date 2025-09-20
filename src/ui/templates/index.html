@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>MapReader UI</title>
+</head>
+<body>
+  <h1>Map Reader Control</h1>
+  <button onclick="runMapReader()">Run MapReader</button>
+
+  <p id="status"></p>
+
+  <script>
+    function runMapReader() {
+      fetch("/run_mapreader", { method: "POST" })
+        .then(response => response.json())
+        .then(data => {
+          document.getElementById("status").innerText = data.message;
+        });
+    }
+  </script>
+  <button onclick="window.location.href='/view_detections'">View Detections</button>
+</body>
+</html>
