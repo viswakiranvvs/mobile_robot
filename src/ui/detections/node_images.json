@@ -1,113 +1,171 @@
 {
-    "15": {
+    "13": {
         "bus": [
             {
                 "bbox": [
-                    206,
-                    200,
-                    342,
-                    345
+                    191,
+                    196,
+                    324,
+                    335
                 ],
-                "confidence": 0.6806049942970276,
-                "file": "detections/detection_15_0_bus_.jpg"
+                "confidence": 0.7080420851707458,
+                "file": "detections/detection_13_0_bus_.jpg"
+            }
+        ]
+    },
+    "14": {
+        "bus": [
+            {
+                "bbox": [
+                    242,
+                    145,
+                    371,
+                    286
+                ],
+                "confidence": 0.7420119047164917,
+                "file": "detections/detection_14_0_bus_.jpg"
+            }
+        ]
+    },
+    "16": {
+        "bus": [
+            {
+                "bbox": [
+                    253,
+                    177,
+                    415,
+                    352
+                ],
+                "confidence": 0.645745575428009,
+                "file": "detections/detection_16_0_bus_.jpg"
+            }
+        ]
+    },
+    "17": {
+        "bus": [
+            {
+                "bbox": [
+                    258,
+                    166,
+                    448,
+                    373
+                ],
+                "confidence": 0.7032622694969177,
+                "file": "detections/detection_17_0_bus_.jpg"
+            }
+        ]
+    },
+    "41": {
+        "vase": [
+            {
+                "bbox": [
+                    289,
+                    350,
+                    340,
+                    428
+                ],
+                "confidence": 0.7833701372146606,
+                "file": "detections/detection_41_0_vase_.jpg"
+            },
+            {
+                "bbox": [
+                    349,
+                    351,
+                    402,
+                    430
+                ],
+                "confidence": 0.7495426535606384,
+                "file": "detections/detection_41_1_vase_.jpg"
             }
         ]
     },
     "42": {
-        "boat": [
-            {
-                "bbox": [
-                    0,
-                    27,
-                    228,
-                    450
-                ],
-                "confidence": 0.7674298286437988,
-                "file": "detections/detection_42_0_boat_.jpg"
-            }
-        ]
-    },
-    "53": {
-        "bottle": [
-            {
-                "bbox": [
-                    300,
-                    412,
-                    318,
-                    456
-                ],
-                "confidence": 0.6958556175231934,
-                "file": "detections/detection_53_0_bottle_.jpg"
-            },
-            {
-                "bbox": [
-                    358,
-                    420,
-                    379,
-                    455
-                ],
-                "confidence": 0.6889483332633972,
-                "file": "detections/detection_53_1_bottle_.jpg"
-            }
-        ]
-    },
-    "54": {
-        "bottle": [
-            {
-                "bbox": [
-                    344,
-                    330,
-                    363,
-                    373
-                ],
-                "confidence": 0.7189531326293945,
-                "file": "detections/detection_54_0_bottle_.jpg"
-            },
-            {
-                "bbox": [
-                    361,
-                    320,
-                    382,
-                    375
-                ],
-                "confidence": 0.71258544921875,
-                "file": "detections/detection_54_1_bottle_.jpg"
-            },
-            {
-                "bbox": [
-                    345,
-                    397,
-                    375,
-                    457
-                ],
-                "confidence": 0.6147337555885315,
-                "file": "detections/detection_54_2_bottle_.jpg"
-            }
-        ],
         "vase": [
             {
                 "bbox": [
-                    477,
-                    286,
-                    613,
-                    449
+                    335,
+                    318,
+                    388,
+                    394
                 ],
-                "confidence": 0.6081965565681458,
-                "file": "detections/detection_54_3_vase_.jpg"
+                "confidence": 0.602698802947998,
+                "file": "detections/detection_42_0_vase_.jpg"
             }
         ]
     },
-    "55": {
+    "43": {
         "bottle": [
             {
                 "bbox": [
-                    341,
-                    324,
-                    372,
-                    397
+                    480,
+                    333,
+                    503,
+                    402
                 ],
-                "confidence": 0.6735084652900696,
-                "file": "detections/detection_55_0_bottle_.jpg"
+                "confidence": 0.6780374050140381,
+                "file": "detections/detection_43_0_bottle_.jpg"
+            },
+            {
+                "bbox": [
+                    450,
+                    333,
+                    479,
+                    400
+                ],
+                "confidence": 0.604767918586731,
+                "file": "detections/detection_43_1_bottle_.jpg"
+            }
+        ]
+    },
+    "45": {
+        "bottle": [
+            {
+                "bbox": [
+                    342,
+                    372,
+                    367,
+                    458
+                ],
+                "confidence": 0.6324421167373657,
+                "file": "detections/detection_45_0_bottle_.jpg"
+            }
+        ]
+    },
+    "64": {
+        "bottle": [
+            {
+                "bbox": [
+                    189,
+                    300,
+                    206,
+                    349
+                ],
+                "confidence": 0.6927982568740845,
+                "file": "detections/detection_64_0_bottle_.jpg"
+            }
+        ]
+    },
+    "65": {
+        "bottle": [
+            {
+                "bbox": [
+                    174,
+                    300,
+                    193,
+                    350
+                ],
+                "confidence": 0.7453576922416687,
+                "file": "detections/detection_65_0_bottle_.jpg"
+            },
+            {
+                "bbox": [
+                    413,
+                    305,
+                    439,
+                    360
+                ],
+                "confidence": 0.6453224420547485,
+                "file": "detections/detection_65_1_bottle_.jpg"
             }
         ]
     }

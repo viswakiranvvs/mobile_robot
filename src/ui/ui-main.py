@@ -21,7 +21,7 @@ def run_mapreader():
         #     text=True,
         #     check=True
         # )
-        subprocess.Popen(["ros2", "run", "mapReader", "map_reader"])
+        subprocess.Popen(["ros2", "run", "mapReader", "map_reader", "--mode", "mapRead", "--node", "1"])
         return jsonify({"status": "success", "message": "Triggered mapReader"})
     except subprocess.CalledProcessError as e:
         return jsonify({"status": "error", "message": e.stderr})
@@ -32,10 +32,11 @@ def navigate_to_node(node_id):
     # Example: navigate_to(node_id)
     print(f"Navigate to node {node_id}")
     args = ["ros2", "run", "mapReader", "map_reader", "--mode", "navigate", "--node", node_id]
-    process = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    process = subprocess.Popen(args)
         
     # Redirect back to detections page or wherever you want
-    return redirect(url_for('view_detections'))
+    return jsonify({"status": "success", "message": "Navigating..."})
+    # return redirect(url_for('view_detections'))
 
 @app.route('/view_detections')
 def view_detections():

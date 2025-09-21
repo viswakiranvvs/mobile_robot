@@ -39,6 +39,7 @@ import numpy as np
 from typing import List, Optional 
 import tf_transformations
 from mapReader.yolo_class import LightweightYolo
+from geometry_msgs.msg import PoseWithCovarianceStamped
 
 # def compute_orientation(from_point, to_point):
 #     yaw = math.atan2(to_point.y - from_point.y, to_point.x - from_point.x)
@@ -87,6 +88,8 @@ class MapClient(Node):
             '/goal_pose', # The topic your NonlinearController listens to
             10
         )
+        self.current_pose = None
+        self.localization_pose = self.create_subscription(PoseWithCovarianceStamped, '/rtabmap/localization_pose',self.update_pose,10)
 
         self.get_node_info_client = self.create_client(GetNodeData, "/rtabmap/rtabmap/get_node_data")
 
@@ -95,6 +98,34 @@ class MapClient(Node):
 
         # self.req = GetNodeData.Request()
 
+    def fetch_pose_once(self, timeout_sec=30.0):
+        """Fetch one PoseStamped from /rtabmap/localization_pose."""
+        self.current_pose = None
+
+        # Temporary subscription
+        # sub = self.create_subscription(
+        #     PoseStamped,
+        #     '/rtabmap/localization_pose',
+        #     self.update_pose,
+        #     1
+        # )
+
+        start_time = self.get_clock().now().seconds_nanoseconds()[0]
+        while rclpy.ok() and self.current_pose is None:
+            rclpy.spin_once(self, timeout_sec=0.1)
+            now = self.get_clock().now().seconds_nanoseconds()[0]
+            if now - start_time > timeout_sec:
+                self.get_logger().warn("Timeout waiting for pose message")
+                break
+
+        # self.destroy_subscription(sub)
+        return self.current_pose
+    
+    def update_pose(self, msg):
+        """Callback to update the latest pose."""
+        self.get_logger().info(f"Pose: {msg}")
+        self.current_pose = msg.pose.pose
+    
     def get_node_data(self, node_ids: List[int]) -> Optional[List[NodeData]]:
         """Get node data for specified node IDs"""
         try:
@@ -320,6 +351,7 @@ class MapClient(Node):
         plt.tight_layout()
         # plt.show()
         plt.savefig("detections/pose_graph.png")
+    
     def load_map_data(self,path="map_data.pkl"):
         with open(path, "rb") as f:
             data = pickle.load(f)
@@ -626,6 +658,21 @@ class MapClient(Node):
             # self.goal_publisher.publish(pose)
             # self.get_logger().info(f"Published goal pose: ({pose.pose.position.x:.2f}, {pose.pose.position.y:.2f}, {pose.pose.position.z:.2f})")
             time.sleep(1)
+    
+    def navigate_To_Node(self,node_id):
+        data=self.load_map_data("/home/robot2/Documents/isaac_sim/mobile_robot/src/ui/detections/map_data.pkl")
+        goal_pose = None
+        current_pose = self.fetch_pose_once()
+        if current_pose is None:
+            self.get_logger().error("Failed to get current pose, cannot navigate")
+            return
+        for i,node in enumerate(data.nodes):
+            if node.id==node_id:
+                goal_pose = node.pose
+                self.get_logger().info(f"Types of goal: {type(goal_pose)}\ncurrent pose: {type(current_pose)}")
+                break
+        poses = self.get_plan(current_pose,goal_pose)
+        self.publish_poses(poses)
 
     def get_plan(self,Start, End, tolerance=0.5, frame_id="map"):
         req = GetPlan.Request()
@@ -771,10 +818,10 @@ def main(args=None):
     parser = argparse.ArgumentParser()
     parser.add_argument("--mode", type=str, default="normal")
     parser.add_argument("--node", type=int, default=-1)
-    args = parser.parse_args()
+    args_ = parser.parse_args()
 
-    print("Mode:", args.mode)
-    print("Count:", args.node)
+    print("Mode:", args_.mode)
+    print("Count:", args_.node)
     rclpy.init(args=args)
     map_client = MapClient()
     # ui = MapUI(map_client)
@@ -783,10 +830,18 @@ def main(args=None):
     # map_client.send_request()
     # map_client.call_get_occupancy_map()
     # map_client.call_get_occupancy_map()
-    map_client.call_get_map_data()
+    while rclpy.ok():
+        rclpy.spin_once(map_client, timeout_sec=0.1)
+        if args_.mode=="mapRead":
+            map_client.call_get_map_data()
+        elif args_.mode=="navigate":
+            map_client.navigate_To_Node(args_.node)
+        # map_client.get_plan()
+        map_client.destroy_node()
+        rclpy.shutdown()
     # map_client.handle_map_data_response(None,True)
-    map_client.destroy_node()
-    rclpy.shutdown()
+    # map_client.destroy_node()
+    # rclpy.shutdown()
     # ui_thread.join()
 
 if __name__ == '__main__':
