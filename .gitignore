@@ -8,3 +8,4 @@ log/
 map_data.pkl
 detections/*.*
 *.pt
+meshes/*.*

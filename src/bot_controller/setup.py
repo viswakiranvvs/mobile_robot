@@ -27,7 +27,8 @@ setup(
     entry_points={
         'console_scripts': [
             'depth_reader = bot_controller.depth_reader:main',
-            'mark_pub = bot_controller.marker_publish:main'
+            'mark_pub = bot_controller.marker_publish:main',
+            'cam_reader = bot_controller.cam_reader:main',
         ],
     },
 )
