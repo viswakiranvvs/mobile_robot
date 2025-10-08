@@ -1,6 +1,7 @@
 from datetime import datetime
 import math
 import shutil
+import time
 from bot_controller.marker_publish import ObjectMarkerPublisher
 from mapReader.yolo_class import LightweightYolo
 import rclpy
@@ -10,6 +11,7 @@ from cv_bridge import CvBridge
 import cv2
 from nav_msgs.msg import Odometry
 import os
+import json
 # import numpy as np
 
 class CamReader(Node):
@@ -19,6 +21,8 @@ class CamReader(Node):
         super().__init__('cam_reader_node')
         self.bridge = CvBridge()
         self.mesh_folder = os.path.join(os.getcwd(), "meshes")
+        # os.makedirs(self.mesh_folder, exist_ok=True)
+        shutil.rmtree(self.mesh_folder)
         os.makedirs(self.mesh_folder, exist_ok=True)
         self.cam_subscription = self.create_subscription(
             Image,
@@ -35,7 +39,9 @@ class CamReader(Node):
         self.odom = None
         self.prev_odom = None
         self.yolo_image =self.create_publisher(Image, '/yolo_image', 10)
-        self.accepted_detections = ["truck","cone","bottle","vase","box","extinguisher"]
+        self.accepted_detections = ["truck","cone","bottle","vase","box",
+                    "extinguisher","banana","person","scissors","cup","mug","marker","car"]
+        self.object_markers=[]
         # detections, annotated = self.yolo.detect(cv_image, return_image=True)
     
     def odom_callback(self, msg):
@@ -84,14 +90,30 @@ class CamReader(Node):
 
         linear_diff, angular_diff = self.odom_movement_diff() or (None, None)
         if linear_diff is not None and angular_diff is not None:
-            if linear_diff < 0.1:
+            if linear_diff < 0.3:
                 # self.get_logger().info(f"Skipping frame due to low movement: linear {linear_diff:.3f}, angular {angular_diff:.3f}")
                 return  # Skip processing this frame
+        # elif self.prev_odom is None:
+        #     return  # Skip if we don't have odom data yet
+        detections.sort(key=lambda d: d['confidence'], reverse=True)
         detected_objects = [det['class_name'] for det in detections if det['class_name'] in self.accepted_detections]
-        if detected_objects:
+        if detected_objects and self.odom is not None:
             self.prev_odom = self.odom
             dae_filename, _ = self.create_mesh(annotated,self.get_clock().now().to_msg())
-            self.marker_pub.publish_object(detected_objects[0],dae_filename, self.odom.pose.pose.position.x, self.odom.pose.pose.position.y, 0.1)
+            new_marker = {
+                "object_name": detected_objects[0],
+                "mesh_name": dae_filename,
+                "x": self.odom.pose.pose.position.x,
+                "y": self.odom.pose.pose.position.y,
+                "id": int(time.time() * 1000) % 1000000
+            }
+            self.object_markers.append(new_marker)
+            json_path = os.path.join(self.mesh_folder, "detected_objects.json")
+            with open(json_path, "w") as jf:
+                json.dump(self.object_markers, jf, indent=4)
+            for marker in self.object_markers:
+                self.marker_pub.publish_object(marker["id"],marker["object_name"],marker["mesh_name"], marker["x"], marker["y"], 0.1)
+            # self.marker_pub.publish_object(detected_objects[0],dae_filename, self.odom.pose.pose.position.x, self.odom.pose.pose.position.y, 0.1)
         # for det in detections:
         #     x1, y1, x2, y2 = det['bbox']
         #     class_name = det['class_name']
@@ -176,7 +198,7 @@ class CamReader(Node):
         with open(dae_path, "w") as f:
             f.write(dae_content)
 
-        self.get_logger().info(f"Created mesh: {dae_path} with texture: {image_path}")
+        # self.get_logger().info(f"Created mesh: {dae_path} with texture: {image_path}")
         install_mesh_folder = os.path.join(os.getcwd(), "install/bot_controller/share/bot_controller/meshes")
         os.makedirs(install_mesh_folder, exist_ok=True)
         shutil.copy(dae_path, install_mesh_folder)

@@ -15,12 +15,12 @@ class ObjectMarkerPublisher(Node):
         # Example usage: publish a marker for an object named "example_object" at (1.0, 2.0, 0.0)
         self.publish_object("bus", -1.0, 2.0, 0.1)
 
-    def publish_object(self, object_name,mesh_name, x, y, z=0.0):
+    def publish_object(self, id,object_name,mesh_name, x, y, z=0.0):
         marker = Marker()
         marker.header.frame_id = "map"
         marker.header.stamp = self.get_clock().now().to_msg()
         marker.ns = "detected_objects"
-        marker.id = hash(object_name) % 1000
+        marker.id = id
         marker.type = Marker.MESH_RESOURCE
         marker.mesh_resource = f'package://bot_controller/meshes/{mesh_name}'
         marker.mesh_use_embedded_materials = True 
