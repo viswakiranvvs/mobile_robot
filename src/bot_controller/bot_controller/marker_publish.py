@@ -28,10 +28,11 @@ class ObjectMarkerPublisher(Node):
         marker.pose.position.x = x
         marker.pose.position.y = y
         marker.pose.position.z = z
-        marker.pose.orientation.w = 1.0
-        marker.scale.x = 0.5
-        marker.scale.y = 0.5
-        marker.scale.z = 0.5
+        # marker.pose.orientation.y = 1.0
+        marker.pose.orientation.w = 0.2
+        marker.scale.x = 0.7
+        marker.scale.y = 0.7
+        marker.scale.z = 0.7
         marker.color.r = 0.0
         marker.color.g = 0.0
         marker.color.b = 0.0
@@ -43,7 +44,7 @@ class ObjectMarkerPublisher(Node):
         text_marker.header.frame_id = "map"
         text_marker.header.stamp = self.get_clock().now().to_msg()
         text_marker.ns = "detected_objects"
-        text_marker.id = (hash(object_name) % 1000) + 1000
+        text_marker.id = id + 1000  # Different ID for text
         text_marker.type = Marker.TEXT_VIEW_FACING
         text_marker.action = Marker.ADD
         text_marker.pose.position.x = x+0.1
