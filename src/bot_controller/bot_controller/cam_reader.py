@@ -2,6 +2,7 @@ from datetime import datetime
 import math
 import shutil
 import time
+from bot_controller.lidar_reader import LidarDistanceAnalyzer
 from bot_controller.marker_publish import ObjectMarkerPublisher
 from mapReader.yolo_class import LightweightYolo
 import rclpy
@@ -21,11 +22,13 @@ if not hasattr(np, 'float'):
 # import numpy as np
 import numpy as np
 import tf2_geometry_msgs
+from rclpy.executors import MultiThreadedExecutor
 
 class CamReader(Node):
     def __init__(self):
         self.yolo = LightweightYolo(model_path="yolov8n.pt", device="cpu", conf=0.35, imgsz=640)
         self.marker_pub = ObjectMarkerPublisher()
+        # self.lidar_reader = lidar_node
         super().__init__('cam_reader_node')
         self.bridge = CvBridge()
         self.mesh_folder = os.path.join(os.getcwd(), "meshes")
@@ -50,7 +53,7 @@ class CamReader(Node):
         self.prev_odom = None
         self.yolo_image =self.create_publisher(Image, '/yolo_image', 10)
         self.accepted_detections = ["truck","cone","bottle","vase","box",
-                    "extinguisher","banana","person","scissors","cup","mug","marker"]
+                    "extinguisher","banana","person","bench","ball","sports ball",]
         self.object_markers=[]
         self.tf_buffer = tf2_ros.Buffer()
         self.listener = tf2_ros.TransformListener(self.tf_buffer, self)
@@ -133,11 +136,43 @@ class CamReader(Node):
         # angular_diff = (angular_diff + math.pi) % (2*math.pi) - math.pi  # normalize [-pi, pi]
         
         return linear_diff, angular_diff
-
+    
+    def check_if_already_detected(self, det, pose, threshold=3):
+        for marker in self.object_markers:
+            dist = math.sqrt((pose.pose.position.x - marker["x"])**2 + (pose.pose.position.y - marker["y"])**2)
+            if dist < threshold and det['class_name'] == marker["object_name"]:
+                return True
+        return False
+    
+    def get_object_direction(self,bbox, image_width, fov_deg=98):
+        """
+        bbox: (xmin, ymin, xmax, ymax)
+        fov_deg: camera horizontal field of view
+        """
+        x_center = (bbox[0] + bbox[2]) / 2
+        angle_per_pixel = fov_deg / image_width
+        offset_from_center = x_center - (image_width / 2)
+        angle_deg = offset_from_center * angle_per_pixel
+        return angle_deg
+    
+    def get_distance_from_lidar(self, target_angle_deg):
+        json_path = os.path.join(os.getcwd(), "lidar_data.json")
+        angle_dict = {}
+        with open(json_path, "r") as f:
+            angle_dict = json.load(f)
+        angle_keys = (list(angle_dict.keys()))
+        angle_keys = [float(k) for k in angle_keys]
+        closest_few_angles = sorted(angle_keys, key=lambda x: abs(x - target_angle_deg))[:40]
+        min_distance = 50
+        min_angle = None
+        for angle in closest_few_angles:
+            distance = angle_dict[str(angle)]
+            if distance < min_distance:
+                min_distance = distance
+                min_angle = angle
+        return min_distance, min_angle
     
     def cam_callback(self, msg):
-        
-        
         cv_image = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
         detections, annotated = self.yolo.detect(cv_image, return_image=True)
         yolo_image_msg = self.bridge.cv2_to_imgmsg(annotated)
@@ -145,7 +180,7 @@ class CamReader(Node):
         yolo_image_msg.header.frame_id = "camera_yolo_detections"
         self.yolo_image.publish(yolo_image_msg)
 
-        linear_diff, angular_diff = self.odom_movement_diff() or (None, None)
+        linear_diff, angular_diff = self.odom_movement_diff()
         # self.get_logger().info(f"Frame received: {len(detections)} detections, linear movement {linear_diff:.3f}, angular movement {angular_diff:.3f}")
         if linear_diff is not None and angular_diff is not None:
             if linear_diff < 1:
@@ -157,18 +192,42 @@ class CamReader(Node):
         detected_objects = [det for det in detections if det['class_name'] in self.accepted_detections]
         if len(detected_objects)>0 and self.odom is not None:
             detected_objects.sort(key=lambda d: d['confidence'], reverse=True)
+            
             if detected_objects[0]['confidence']<0.5:
                 return
             if detected_objects[0]['class_name']=="person" and detected_objects[0]['confidence']<0.7:
                 return
             id = int(time.time() * 1000) % 1000000
-            dae_filename, image_filename = self.create_mesh(annotated,self.get_clock().now().to_msg())
-            self.extract_detected_images(id, detected_objects[0], cv_image, image_filename)
+            degree = -1* self.get_object_direction(detected_objects[0]['bbox'], cv_image.shape[1])
+            if abs(degree)>20:
+                self.get_logger().info(f"Skipping object {detected_objects[0]['class_name']} at {degree:.2f} degrees (out of range)")
+                return
+            self.get_logger().info(f"Degree {degree}")
+            # obj_distance,angle = self.lidar_reader.get_distance_at_angle(degree)
+            obj_distance,angle = self.get_distance_from_lidar(degree)
+            angle = math.radians(-1*angle)
+            if obj_distance is None or obj_distance>10.0:
+                return
+            
+
+            
             self.prev_odom = self.odom
+            x_offset = obj_distance * math.cos(angle)
+            y_offset = obj_distance * math.sin(angle)
+            self.odom.pose.pose.position.x += x_offset
+            self.odom.pose.pose.position.y += y_offset
             tranform_pose = self.tranform_pose(self.odom.pose.pose, from_frame='odom', to_frame='map')
             if tranform_pose is None:
                 self.get_logger().warn("Skipping frame due to transform failure")
                 return
+            
+            if self.check_if_already_detected(detected_objects[0], tranform_pose):
+                self.get_logger().info("Object already detected nearby, skipping...")
+                return
+
+            dae_filename, image_filename = self.create_mesh(annotated,self.get_clock().now().to_msg())
+            self.extract_detected_images(id, detected_objects[0], cv_image, image_filename)
+            
             new_marker = {
                 "object_name": detected_objects[0]['class_name'],
                 "mesh_name": dae_filename,
@@ -176,15 +235,18 @@ class CamReader(Node):
                 # "y": self.odom.pose.pose.position.y,
                 "x": tranform_pose.pose.position.x,
                 "y": tranform_pose.pose.position.y,
-                "id": id
+                "id": int(id)
             }
             self.get_logger().info(f"Detected {detected_objects[0]['class_name']} with confidence {detected_objects[0]['confidence']:.2f} at position ({new_marker['x']:.2f}, {new_marker['y']:.2f})")
+            self.get_logger().info(f"Id for marker: {id} type: {type(id)}")
             self.object_markers.append(new_marker)
             json_path = os.path.join(self.mesh_folder, "detected_objects.json")
             with open(json_path, "w") as jf:
                 json.dump(self.object_markers, jf, indent=4)
             for marker in self.object_markers:
-                self.marker_pub.publish_object(marker["id"],marker["object_name"],marker["mesh_name"], marker["x"], marker["y"], 0.1)
+                self.marker_pub.publish_object(int(marker["id"]),marker["object_name"],marker["mesh_name"], marker["x"], marker["y"], 0.1)
+           
+           
             # self.marker_pub.publish_object(detected_objects[0],dae_filename, self.odom.pose.pose.position.x, self.odom.pose.pose.position.y, 0.1)
         # for det in detections:
         #     x1, y1, x2, y2 = det['bbox']
@@ -280,17 +342,24 @@ class CamReader(Node):
 
 def main():
     rclpy.init()
-    node = CamReader()
+    # lidar_node = LidarDistanceAnalyzer()
+    cam_node = CamReader()
+    # executor = MultiThreadedExecutor()
+    # executor.add_node(lidar_node)
+    # executor.add_node(cam_node)
     try:
         # while rclpy.ok():
         #     # Manually check timers (since this timer is not tied to executor)
         #     node.timer.is_ready()
-        rclpy.spin(node)
+        # rclpy.spin(lidar_node)
+        rclpy.spin(cam_node)
+        # executor.spin()
 
     except KeyboardInterrupt:
         pass
     finally:
-        node.destroy_node()
+        # lidar_node.destroy_node()
+        cam_node.destroy_node()
         rclpy.shutdown()
 
 
