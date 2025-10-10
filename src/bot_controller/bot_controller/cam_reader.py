@@ -175,21 +175,62 @@ class CamReader(Node):
     def cam_callback(self, msg):
         cv_image = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
         detections, annotated = self.yolo.detect(cv_image, return_image=True)
+        
+        # self.yolo_image.publish(yolo_image_msg)
+        
+        
+        detected_objects = [det for det in detections if det['class_name'] in self.accepted_detections]
+
+        if len(detected_objects)==0:
+            return
+
+
+        degree = -1 * self.get_object_direction(detected_objects[0]['bbox'], cv_image.shape[1])
+        obj_distance, angle = self.get_distance_from_lidar(degree)
+
+        self.get_logger().info(f"Object directed: {detected_objects[0]['class_name']}")
+
+        # Prepare lines
+        lines = [
+            f"Deviation: {round(degree,2)}",
+            f"Distance at deviation: {round(obj_distance,2)}"
+        ]
+
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        font_scale = 1
+        color = (255, 255, 255)  # White
+        thickness = 2
+        line_height = 30  # pixels between lines, adjust as needed
+
+        # Get image dimensions
+        height, width, _ = annotated.shape
+
+        # Starting y position for first line (above bottom of image)
+        start_y = height - 50
+
+        # Draw each line
+        for i, line in enumerate(lines):
+            text_size = cv2.getTextSize(line, font, font_scale, thickness)[0]
+            text_x = (width - text_size[0]) // 2  # center horizontally
+            text_y = start_y + i * line_height
+            cv2.putText(annotated, line, (text_x, text_y), font, font_scale, color, thickness, cv2.LINE_AA)
+
         yolo_image_msg = self.bridge.cv2_to_imgmsg(annotated)
         yolo_image_msg.header.stamp = self.get_clock().now().to_msg()
         yolo_image_msg.header.frame_id = "camera_yolo_detections"
         self.yolo_image.publish(yolo_image_msg)
 
-        linear_diff, angular_diff = self.odom_movement_diff()
-        # self.get_logger().info(f"Frame received: {len(detections)} detections, linear movement {linear_diff:.3f}, angular movement {angular_diff:.3f}")
-        if linear_diff is not None and angular_diff is not None:
-            if linear_diff < 1:
-                # self.get_logger().info(f"Skipping frame due to low movement: linear {linear_diff:.3f}, angular {angular_diff:.3f}")
-                return  # Skip processing this frame
+        # return
+        # linear_diff, angular_diff = self.odom_movement_diff()
+        # # self.get_logger().info(f"Frame received: {len(detections)} detections, linear movement {linear_diff:.3f}, angular movement {angular_diff:.3f}")
+        # if linear_diff is not None and angular_diff is not None:
+        #     if linear_diff < 1:
+        #         # self.get_logger().info(f"Skipping frame due to low movement: linear {linear_diff:.3f}, angular {angular_diff:.3f}")
+        #         return  # Skip processing this frame
         # elif self.prev_odom is None:
         #     return  # Skip if we don't have odom data yet
         
-        detected_objects = [det for det in detections if det['class_name'] in self.accepted_detections]
+        # detected_objects = [det for det in detections if det['class_name'] in self.accepted_detections]
         if len(detected_objects)>0 and self.odom is not None:
             detected_objects.sort(key=lambda d: d['confidence'], reverse=True)
             
@@ -198,8 +239,8 @@ class CamReader(Node):
             if detected_objects[0]['class_name']=="person" and detected_objects[0]['confidence']<0.7:
                 return
             id = int(time.time() * 1000) % 1000000
-            degree = -1* self.get_object_direction(detected_objects[0]['bbox'], cv_image.shape[1])
-            if abs(degree)>20:
+            # degree = -1* self.get_object_direction(detected_objects[0]['bbox'], cv_image.shape[1])
+            if abs(degree)>15:
                 self.get_logger().info(f"Skipping object {detected_objects[0]['class_name']} at {degree:.2f} degrees (out of range)")
                 return
             self.get_logger().info(f"Degree {degree}")
@@ -214,13 +255,16 @@ class CamReader(Node):
             self.prev_odom = self.odom
             x_offset = obj_distance * math.cos(angle)
             y_offset = obj_distance * math.sin(angle)
-            self.odom.pose.pose.position.x += x_offset
-            self.odom.pose.pose.position.y += y_offset
+            # self.odom.pose.pose.position.x += x_offset
+            # self.odom.pose.pose.position.y -= y_offset
             tranform_pose = self.tranform_pose(self.odom.pose.pose, from_frame='odom', to_frame='map')
+
             if tranform_pose is None:
                 self.get_logger().warn("Skipping frame due to transform failure")
                 return
             
+            tranform_pose.pose.position.x = tranform_pose.pose.position.x+x_offset
+            tranform_pose.pose.position.y = tranform_pose.pose.position.y+y_offset
             if self.check_if_already_detected(detected_objects[0], tranform_pose):
                 self.get_logger().info("Object already detected nearby, skipping...")
                 return
