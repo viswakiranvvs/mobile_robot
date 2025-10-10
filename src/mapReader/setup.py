@@ -28,7 +28,8 @@ setup(
             'map_reader = mapReader.map_reader:main',
             'cmd_vel_to_rotor = mapReader.cmd_vel_to_rotor:main',
             'joy_drone_control = mapReader.joy_drone_controller:main',
-            'map_yaml = mapReader.map_to_yaml:main'
+            'map_yaml = mapReader.map_to_yaml:main',
+            'dummy_writer = mapReader.dummy_writer:main',
         ],
     },
 )

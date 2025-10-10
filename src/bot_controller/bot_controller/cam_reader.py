@@ -57,6 +57,7 @@ class CamReader(Node):
         self.object_markers=[]
         self.tf_buffer = tf2_ros.Buffer()
         self.listener = tf2_ros.TransformListener(self.tf_buffer, self)
+        self.dist_degree_dict = dict()
         # detections, annotated = self.yolo.detect(cv_image, return_image=True)
     
     def odom_callback(self, msg):
@@ -189,6 +190,11 @@ class CamReader(Node):
         obj_distance, angle = self.get_distance_from_lidar(degree)
 
         self.get_logger().info(f"Object directed: {detected_objects[0]['class_name']}")
+        
+        self.dist_degree_dict[float(round(degree,2))] = obj_distance
+        json_path = os.path.join(self.mesh_folder, "dist_degree.json")
+        with open(json_path, "w") as f:
+            json.dump(self.dist_degree_dict, f, indent=4)
 
         # Prepare lines
         lines = [
