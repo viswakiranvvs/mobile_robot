@@ -10,7 +10,7 @@ import json
 class LidarDistanceAnalyzer(Node):
     def __init__(self):
         super().__init__('lidar_distance_analyzer')
-        self.sub = self.create_subscription(LaserScan, '/scan', self.callback, 10)
+        self.sub = self.create_subscription(LaserScan, '/scan_some', self.callback, 10)
         # self.pub = self.create_publisher(String, '/lidar_minmax', 10)
         self.get_logger().info("Lidar Distance Analyzer started")
         self.angles=[]

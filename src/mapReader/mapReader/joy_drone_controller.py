@@ -57,8 +57,8 @@ class JoystickController(Node):
         # Example for a standard gamepad. You might need to adjust these indices!
         left_stick_lr = msg.axes[0]   # Axis 0: Left Stick Left/Right
         left_stick_ud = msg.axes[1]   # Axis 1: Left Stick Up/Down
-        right_stick_lr = msg.axes[3]  # Axis 3: Right Stick Left/Right (Yaw)
-        right_stick_ud = msg.axes[4]  # Axis 4: Right Stick Up/Down (Altitude)
+        right_stick_lr = msg.axes[2]  # Axis 3: Right Stick Left/Right (Yaw)
+        right_stick_ud = msg.axes[3]  # Axis 4: Right Stick Up/Down (Altitude)
 
         # self.get_logger().info(f'Joystick Axes: {msg.axes}')
 
