@@ -9,6 +9,7 @@ import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
+from message_filters import Subscriber, ApproximateTimeSynchronizer
 
 
 class RGB_TODepthNode(Node):
@@ -29,19 +30,110 @@ class RGB_TODepthNode(Node):
         model.load_state_dict(torch.load(f'/home/robot2/Documents/isaac_sim/mobile_robot/src/depth_package/Depth-Anything-V2/checkpoints/depth_anything_v2_{encoder}.pth', map_location='cpu'))
         self.model = model.to(DEVICE).eval()
         self.bridge = CvBridge()
-        self.rgb_subscriber = self.create_subscription(
-            Image,
-            '/camera_rgb',
-            self.rgb_callback,
-            10
+        # self.rgb_subscriber = self.create_subscription(
+        #     Image,
+        #     '/camera_rgb',
+        #     self.rgb_callback,
+        #     10
+        # )
+        # self.actual_depth_subscriber = self.create_subscription(
+        #     Image,
+        #     '/camera_depth',
+        #     self.depth_callback,
+        #     10
+        # )
+        # self.depth_pub =self.create_publisher(Image, '/custom_depth', 10)
+
+        self.rgb_sub = Subscriber(self, Image, '/camera_rgb')
+        self.gt_depth_sub = Subscriber(self, Image, '/camera_depth')
+
+        self.sync = ApproximateTimeSynchronizer(
+            [self.rgb_sub, self.gt_depth_sub],
+            queue_size=10,
+            slop=0.05
         )
-        self.actual_depth_subscriber = self.create_subscription(
-            Image,
-            '/camera_depth',
-            self.depth_callback,
-            10
-        )
-        self.depth_pub =self.create_publisher(Image, '/custom_depth', 10)
+        self.sync.registerCallback(self.synced_callback)
+    
+    def synced_callback(self, rgb_msg, depth_msg):
+        # RGB
+        cv_image = self.bridge.imgmsg_to_cv2(rgb_msg, 'bgr8')
+        rgb_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2RGB)
+
+        # Ground-truth depth (meters)
+        gt_depth = self.bridge.imgmsg_to_cv2(depth_msg, '32FC1')
+
+        # Estimated depth (relative)
+        est_depth = self.model.infer_image(rgb_image).astype(np.float32)
+        est_depth = est_depth*3
+        # est_depth = (np.mean(est_depth) - est_depth)  # Invert depth
+        # est_depth_scaled = self.align_scale(est_depth, gt_depth)
+        est_depth_scaled = est_depth
+
+        h, w = gt_depth.shape
+        cy, cx = h // 2, w // 2
+
+        center_3x3 = gt_depth[cy-1:cy+2, cx-100:cx-97]
+
+        self.get_logger().info(str(center_3x3))
+
+        center_3x3_est = est_depth[cy-1:cy+2, cx-100:cx-97]
+        self.get_logger().info(str(center_3x3_est))
+
+        # self.get_logger().info(est_depth_scaled[cy-1:cy+2, cx-1:cx+2])
+
+       
+        # self.compare_depths(est_depth, gt_depth)
+        # error = np.abs(est_depth*100 - gt_depth)
+
+        # error_vis = cv2.normalize(
+        #     error, None, 0, 255, cv2.NORM_MINMAX
+        # ).astype(np.uint8)
+
+        # cv2.imshow("Depth Error", error_vis)
+        # cv2.waitKey(1)
+
+        valid_mask = np.isfinite(gt_depth) & (gt_depth > 0)
+
+        est_depth_scaled = self.align_scale(est_depth, gt_depth)
+        error = np.abs(est_depth_scaled - gt_depth)
+
+        def normalize(img, mask):
+            norm = cv2.normalize(
+                img, None, 0, 255, cv2.NORM_MINMAX
+            ).astype(np.uint8)
+
+            norm[~mask] = 0
+            return norm
+
+        gt_vis   = normalize(gt_depth, valid_mask)
+        est_vis  = normalize(est_depth_scaled, valid_mask)
+        error_vis = normalize(error, valid_mask)
+        gt_color    = cv2.applyColorMap(gt_vis, cv2.COLORMAP_JET)
+        est_color   = cv2.applyColorMap(est_vis, cv2.COLORMAP_JET)
+        error_color = cv2.applyColorMap(error_vis, cv2.COLORMAP_HOT)
+
+        combined = np.hstack((gt_color, est_color, error_color))
+        cv2.imshow("GT | Estimated | Error", combined)
+        cv2.waitKey(1)
+
+    def align_scale(self, est, gt):
+        mask = np.isfinite(gt) & (gt > 0)
+
+        scale = np.sum(gt[mask] * est[mask]) / np.sum(est[mask] ** 2)
+        return est * scale
+
+    def compute_metrics(self, est, gt):
+        mask = np.isfinite(gt) & (gt > 0)
+
+        est = est[mask]
+        gt = gt[mask]
+
+        abs_rel = np.mean(np.abs(est - gt) / gt)
+        rmse = np.sqrt(np.mean((est - gt) ** 2))
+        delta1 = np.mean(np.maximum(est / gt, gt / est) < 1.25)
+
+        return abs_rel, rmse, delta1
+
 
     def depth_callback(self, msg):
         self.get_logger().info('Received actual depth image.')
