@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 import torch
 import sys
-sys.path.append("/home/robot2/Documents/isaac_sim/mobile_robot/src/depth_package/Depth-Anything-V2")
+sys.path.append("/home/robot2/Documents/isaac_sim/mobile_robot/src/depth_package/Depth-Anything-V2/metric_depth")
 # from app import DEVICE
 from depth_anything_v2.dpt import DepthAnythingV2
 import rclpy
@@ -20,14 +20,16 @@ class RGB_TODepthNode(Node):
         model_configs = {
             'vits': {'encoder': 'vits', 'features': 64, 'out_channels': [48, 96, 192, 384]},
             'vitb': {'encoder': 'vitb', 'features': 128, 'out_channels': [96, 192, 384, 768]},
-            'vitl': {'encoder': 'vitl', 'features': 256, 'out_channels': [256, 512, 1024, 1024]},
-            'vitg': {'encoder': 'vitg', 'features': 384, 'out_channels': [1536, 1536, 1536, 1536]}
+            'vitl': {'encoder': 'vitl', 'features': 256, 'out_channels': [256, 512, 1024, 1024]}
         }
 
-        encoder = 'vits' # or 'vits', 'vitb', 'vitg'
 
-        model = DepthAnythingV2(**model_configs[encoder])
-        model.load_state_dict(torch.load(f'/home/robot2/Documents/isaac_sim/mobile_robot/src/depth_package/Depth-Anything-V2/checkpoints/depth_anything_v2_{encoder}.pth', map_location='cpu'))
+        encoder = 'vitl' # or 'vits', 'vitb'
+        dataset = 'hypersim' # 'hypersim' for indoor model, 'vkitti' for outdoor model
+        max_depth = 20 # 20 for indoor model, 80 for outdoor model
+
+        model = DepthAnythingV2(**{**model_configs[encoder], 'max_depth': max_depth})
+        model.load_state_dict(torch.load(f'/home/robot2/Documents/isaac_sim/mobile_robot/src/depth_package/Depth-Anything-V2/checkpoints/depth_anything_v2_metric_{dataset}_{encoder}.pth', map_location='cpu'))
         self.model = model.to(DEVICE).eval()
         self.bridge = CvBridge()
         # self.rgb_subscriber = self.create_subscription(
@@ -42,7 +44,7 @@ class RGB_TODepthNode(Node):
         #     self.depth_callback,
         #     10
         # )
-        # self.depth_pub =self.create_publisher(Image, '/custom_depth', 10)
+        self.depth_pub =self.create_publisher(Image, '/custom_depth', 10)
 
         self.rgb_sub = Subscriber(self, Image, '/camera_rgb')
         self.gt_depth_sub = Subscriber(self, Image, '/camera_depth')
@@ -59,25 +61,31 @@ class RGB_TODepthNode(Node):
         cv_image = self.bridge.imgmsg_to_cv2(rgb_msg, 'bgr8')
         rgb_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2RGB)
 
+        self.get_logger().info('Depth Header: '+str(depth_msg.header))
+
         # Ground-truth depth (meters)
         gt_depth = self.bridge.imgmsg_to_cv2(depth_msg, '32FC1')
 
         # Estimated depth (relative)
+        self.get_logger().info('GT Depth shape: '+str(gt_depth.shape))
         est_depth = self.model.infer_image(rgb_image).astype(np.float32)
-        est_depth = est_depth*3
+        self.get_logger().info('Est Depth shape: '+str(est_depth.shape))
+        # est_depth = est_depth*3
         # est_depth = (np.mean(est_depth) - est_depth)  # Invert depth
-        # est_depth_scaled = self.align_scale(est_depth, gt_depth)
-        est_depth_scaled = est_depth
+        est_depth_scaled = self.align_scale(est_depth, gt_depth)
+        # est_depth_scaled = est_depth
 
         h, w = gt_depth.shape
         cy, cx = h // 2, w // 2
 
-        center_3x3 = gt_depth[cy-1:cy+2, cx-100:cx-97]
+        top_left     = (cx - 100, cy - 1)
+        bottom_right = (cx - 80,  cy + 30)
+        center_3x3 = gt_depth[top_left[1]:bottom_right[1], top_left[0]:bottom_right[0]]
 
-        self.get_logger().info(str(center_3x3))
+        self.get_logger().info("GT: "+str(np.mean(center_3x3)))
 
-        center_3x3_est = est_depth[cy-1:cy+2, cx-100:cx-97]
-        self.get_logger().info(str(center_3x3_est))
+        center_3x3_est = est_depth_scaled[top_left[1]:bottom_right[1], top_left[0]:bottom_right[0]]
+        self.get_logger().info("Est: "+str(np.mean(center_3x3_est)))
 
         # self.get_logger().info(est_depth_scaled[cy-1:cy+2, cx-1:cx+2])
 
@@ -112,8 +120,25 @@ class RGB_TODepthNode(Node):
         est_color   = cv2.applyColorMap(est_vis, cv2.COLORMAP_JET)
         error_color = cv2.applyColorMap(error_vis, cv2.COLORMAP_HOT)
 
+        color = (0, 255, 0)  # Green square
+        thickness = 2
+
+        cv2.rectangle(gt_color, top_left, bottom_right, color, thickness)
+        cv2.rectangle(est_color, top_left, bottom_right, color, thickness)
+        cv2.rectangle(error_color, top_left, bottom_right, color, thickness)
+
+        
+
         combined = np.hstack((gt_color, est_color, error_color))
         cv2.imshow("GT | Estimated | Error", combined)
+
+        depth_image_msg = self.bridge.cv2_to_imgmsg(est_depth_scaled,encoding="32FC1")
+
+        # depth_image_msg = self.bridge.cv2_to_imgmsg(rgb_image,encoding="rgb8")
+        # depth_image_msg.header.stamp = self.get_clock().now().to_msg()
+        # depth_image_msg.header.frame_id = "camera_depth_estimation"
+        depth_image_msg.header = depth_msg.header
+        self.depth_pub.publish(depth_image_msg)
         cv2.waitKey(1)
 
     def align_scale(self, est, gt):
