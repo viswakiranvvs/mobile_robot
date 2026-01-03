@@ -44,10 +44,10 @@ class RGB_TODepthNode(Node):
         #     self.depth_callback,
         #     10
         # )
-        self.depth_pub =self.create_publisher(Image, '/custom_depth', 10)
+        self.depth_pub =self.create_publisher(Image, '/camera/depth/image', 10)
 
-        self.rgb_sub = Subscriber(self, Image, '/camera_rgb')
-        self.gt_depth_sub = Subscriber(self, Image, '/camera_depth')
+        self.rgb_sub = Subscriber(self, Image, '/camera/camera_rgb')
+        self.gt_depth_sub = Subscriber(self, Image, '/camera/depth/image_original')
 
         self.sync = ApproximateTimeSynchronizer(
             [self.rgb_sub, self.gt_depth_sub],

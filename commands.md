@@ -54,3 +54,8 @@ ros2 launch rtabmap_launch rtabmap.launch.py     rgb_topic:=/camera_rgb    depth
 ```
 ros2 launch rtabmap_launch rtabmap.launch.py     rgb_topic:=/camera_rgb    depth_topic:=/custom_depth     camera_info_topic:=/camera_camera_info     frame_id:=Camera_OmniVision_OV9782_Color     approx_sync:=true     approx_sync_max_interval:=0.5     topic_queue_size:=30     sync_queue_size:=30 rtabmap_args:="--delete_db_on_start --Odom/Strategy=0"
 ```
+
+
+ros2 launch depth_to_scan.launch.py
+
+python3 src/depth_package/depth_package/rgb_to_depth.py
