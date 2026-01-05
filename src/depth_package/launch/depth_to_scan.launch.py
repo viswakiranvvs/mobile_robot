@@ -18,6 +18,8 @@ def generate_launch_description():
                 # 'queue_size': 10,
                 # 'range_min': 0.3,
                 # 'range_max': 5.0,
+                'range_max': 15.0,
+                'scan_height': 2,
                 'output_frame': 'base_link',
             }]
         )

@@ -44,14 +44,14 @@ class RGB_TODepthNode(Node):
         #     self.depth_callback,
         #     10
         # )
-        self.depth_pub =self.create_publisher(Image, '/camera/depth/image', 10)
+        self.depth_pub =self.create_publisher(Image, '/camera/depth/image', 100)
 
         self.rgb_sub = Subscriber(self, Image, '/camera/camera_rgb')
         self.gt_depth_sub = Subscriber(self, Image, '/camera/depth/image_original')
 
         self.sync = ApproximateTimeSynchronizer(
             [self.rgb_sub, self.gt_depth_sub],
-            queue_size=10,
+            queue_size=100,
             slop=0.05
         )
         self.sync.registerCallback(self.synced_callback)
@@ -102,7 +102,8 @@ class RGB_TODepthNode(Node):
 
         valid_mask = np.isfinite(gt_depth) & (gt_depth > 0)
 
-        est_depth_scaled = self.align_scale(est_depth, gt_depth)
+        # est_depth_scaled = self.align_scale(est_depth, gt_depth)
+        est_depth_scaled = est_depth
         error = np.abs(est_depth_scaled - gt_depth)
 
         def normalize(img, mask):
@@ -141,11 +142,11 @@ class RGB_TODepthNode(Node):
         self.depth_pub.publish(depth_image_msg)
         cv2.waitKey(1)
 
-    def align_scale(self, est, gt):
-        mask = np.isfinite(gt) & (gt > 0)
+    # def align_scale(self, est, gt):
+    #     mask = np.isfinite(gt) & (gt > 0)
 
-        scale = np.sum(gt[mask] * est[mask]) / np.sum(est[mask] ** 2)
-        return est * scale
+    #     scale = np.sum(gt[mask] * est[mask]) / np.sum(est[mask] ** 2)
+    #     return est * scale
 
     def compute_metrics(self, est, gt):
         mask = np.isfinite(gt) & (gt > 0)
