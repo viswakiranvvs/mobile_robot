@@ -26,7 +26,29 @@ class JoystickController(Node):
             '/goal_pose', # The topic your NonlinearController listens to
             10
         )
-        
+
+        self.manipulator_publisher = self.create_publisher(
+            PoseStamped,
+            '/manipulator_goal', # The topic your NonlinearController listens to
+            10
+        )
+
+        self.camera_publisher = self.create_publisher(
+            PoseStamped,
+            '/camera_goal', # The topic your NonlinearController listens to
+            10
+        )
+
+        self.manipulator_pose = PoseStamped()
+        self.manipulator_pose.pose.position = Point(x=0.0, y=0.0, z=0.0) # Start at 2m altitude
+        self.manipulator_pose.pose.orientation = Quaternion(x=0.0, y=0.0, z=0.0, w=0.0) # Default orientation
+        self.manipulator_pose.header.frame_id = 'world'
+
+        self.camera_pose = PoseStamped()
+        self.camera_pose.pose.position = Point(x=0.0, y=0.0, z=0.0) # Start at 2m altitude
+        self.camera_pose.pose.orientation = Quaternion(x=0.0, y=0.0, z=0.0, w=0.0) # Default orientation
+        self.camera_pose.header.frame_id = 'world'
+
         # Initialize the current target position
         self.current_pose = PoseStamped()
         self.current_pose.pose.position = Point(x=0.0, y=0.0, z=0.0) # Start at 2m altitude
@@ -61,6 +83,27 @@ class JoystickController(Node):
         right_stick_ud = msg.axes[3]  # Axis 4: Right Stick Up/Down (Altitude)
 
         # self.get_logger().info(f'Joystick Axes: {msg.axes}')
+        # self.get_logger().info(f'Joystick Buttons: {msg.buttons}')
+        manip_up = msg.buttons[6] 
+        manip_down = msg.buttons[8]
+        current_manip_z = self.manipulator_pose.pose.position.z
+        if manip_up == 1:
+            self.manipulator_pose.pose.position.z = max(current_manip_z + 0.01,0.55)
+        if manip_down == 1:
+            self.manipulator_pose.pose.position.z = min(current_manip_z - 0.01,-0.07)
+        self.manipulator_pose.header.stamp = now.to_msg()
+        self.manipulator_publisher.publish(self.manipulator_pose)
+
+        cam_up = msg.buttons[7] 
+        cam_down = msg.buttons[9]
+        if cam_up == 1:
+            self.camera_pose.pose.position.z += 1
+        if cam_down == 1:
+            self.camera_pose.pose.position.z -= 1
+        self.camera_pose.header.stamp = now.to_msg()
+        self.camera_publisher.publish(self.camera_pose)
+
+        self.get_logger().info(f'Manipulator Z: {self.manipulator_pose.pose.position.z:.2f}, Camera Z: {self.camera_pose.pose.position.z:.2f}', throttle_duration_sec=1.0)
 
         # self.get_logger().info(f'Joystick Input - Left Stick: ({left_stick_lr:.2f}, {left_stick_ud:.2f}), Right Stick: ({right_stick_lr:.2f}, {right_stick_ud:.2f})', throttle_duration_sec=1.0)
         

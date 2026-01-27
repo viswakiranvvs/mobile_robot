@@ -72,8 +72,8 @@ class RGB_TODepthNode(Node):
         self.get_logger().info('Est Depth shape: '+str(est_depth.shape))
         # est_depth = est_depth*3
         # est_depth = (np.mean(est_depth) - est_depth)  # Invert depth
-        est_depth_scaled = self.align_scale(est_depth, gt_depth)
-        # est_depth_scaled = est_depth
+        # est_depth_scaled = self.align_scale(est_depth, gt_depth)
+        est_depth_scaled = est_depth
 
         h, w = gt_depth.shape
         cy, cx = h // 2, w // 2
