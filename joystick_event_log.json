@@ -1,0 +1,532 @@
+{
+    "events": [
+        {
+            "timestamp": 1770032342.756186,
+            "type": "gripper",
+            "activity": "close",
+            "displacement": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0,
+                "yaw": 0.0
+            }
+        },
+        {
+            "timestamp": 1770032350.7365785,
+            "type": "gripper",
+            "activity": "open",
+            "displacement": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0,
+                "yaw": 0.0
+            }
+        },
+        {
+            "timestamp": 1770032353.7364976,
+            "type": "drone",
+            "activity": "move",
+            "displacement": {
+                "x": 0.0,
+                "y": -0.0,
+                "z": 0.015502377092479319,
+                "yaw": 0.0
+            }
+        },
+        {
+            "timestamp": 1770032353.9192832,
+            "type": "drone",
+            "activity": "move",
+            "displacement": {
+                "x": 0.0,
+                "y": -0.0,
+                "z": 0.09139278,
+                "yaw": 0.0
+            }
+        },
+        {
+            "timestamp": 1770032354.0192955,
+            "type": "drone",
+            "activity": "move",
+            "displacement": {
+                "x": 0.0,
+                "y": -0.0,
+                "z": 0.050006137,
+                "yaw": 0.0
+            }
+        },
+        {
+            "timestamp": 1770032354.1713667,
+            "type": "drone",
+            "activity": "move",
+            "displacement": {
+                "x": 0.0,
+                "y": -0.0,
+                "z": 0.0760355715,
+                "yaw": 0.0
+            }
+        },
+        {
+            "timestamp": 1770032354.3223011,
+            "type": "drone",
+            "activity": "move",
+            "displacement": {
+                "x": 0.0,
+                "y": -0.0,
+                "z": 0.075467277,
+                "yaw": 0.0
+            }
+        },
+        {
+            "timestamp": 1770032354.472589,
+            "type": "drone",
+            "activity": "move",
+            "displacement": {
+                "x": 0.0,
+                "y": -0.0,
+                "z": 0.075143871,
+                "yaw": 0.0
+            }
+        },
+        {
+            "timestamp": 1770032354.6228287,
+            "type": "drone",
+            "activity": "move",
+            "displacement": {
+                "x": 0.0,
+                "y": -0.0,
+                "z": 0.0751199135,
+                "yaw": 0.0
+            }
+        },
+        {
+            "timestamp": 1770032356.1204238,
+            "type": "drone",
+            "activity": "move",
+            "displacement": {
+                "x": 0.0,
+                "y": -0.0,
+                "z": -0.054935575,
+                "yaw": 0.0
+            }
+        },
+        {
+            "timestamp": 1770032356.270516,
+            "type": "drone",
+            "activity": "move",
+            "displacement": {
+                "x": 0.0,
+                "y": -0.0,
+                "z": -0.0750460835,
+                "yaw": 0.0
+            }
+        },
+        {
+            "timestamp": 1770032356.4216626,
+            "type": "drone",
+            "activity": "move",
+            "displacement": {
+                "x": 0.0,
+                "y": -0.0,
+                "z": -0.0755733335,
+                "yaw": 0.0
+            }
+        },
+        {
+            "timestamp": 1770032356.5726821,
+            "type": "drone",
+            "activity": "move",
+            "displacement": {
+                "x": 0.0,
+                "y": -0.0,
+                "z": -0.0755097995,
+                "yaw": 0.0
+            }
+        },
+        {
+            "timestamp": 1770032356.7216785,
+            "type": "drone",
+            "activity": "move",
+            "displacement": {
+                "x": 0.0,
+                "y": -0.0,
+                "z": -0.0744981745,
+                "yaw": 0.0
+            }
+        },
+        {
+            "timestamp": 1770032356.871631,
+            "type": "drone",
+            "activity": "move",
+            "displacement": {
+                "x": 0.0,
+                "y": -0.0,
+                "z": -0.074976172,
+                "yaw": 0.0
+            }
+        },
+        {
+            "timestamp": 1770032357.021886,
+            "type": "drone",
+            "activity": "move",
+            "displacement": {
+                "x": 0.0,
+                "y": -0.0,
+                "z": -0.075127638,
+                "yaw": 0.0
+            }
+        },
+        {
+            "timestamp": 1770032357.1242604,
+            "type": "drone",
+            "activity": "move",
+            "displacement": {
+                "x": 0.0,
+                "y": -0.0,
+                "z": -0.051187118,
+                "yaw": 0.0
+            }
+        },
+        {
+            "timestamp": 1770032357.2742333,
+            "type": "drone",
+            "activity": "move",
+            "displacement": {
+                "x": 0.0,
+                "y": -0.0,
+                "z": -0.0749864675,
+                "yaw": 0.0
+            }
+        },
+        {
+            "timestamp": 1770032357.3747017,
+            "type": "drone",
+            "activity": "move",
+            "displacement": {
+                "x": 0.0,
+                "y": -0.0,
+                "z": -0.050234293,
+                "yaw": 0.0
+            }
+        },
+        {
+            "timestamp": 1770032357.5257013,
+            "type": "drone",
+            "activity": "move",
+            "displacement": {
+                "x": 0.0,
+                "y": -0.0,
+                "z": -0.0754997045,
+                "yaw": 0.0
+            }
+        },
+        {
+            "timestamp": 1770032357.6753294,
+            "type": "drone",
+            "activity": "move",
+            "displacement": {
+                "x": 0.0,
+                "y": -0.0,
+                "z": -0.074814171,
+                "yaw": 0.0
+            }
+        },
+        {
+            "timestamp": 1770032357.775667,
+            "type": "drone",
+            "activity": "move",
+            "displacement": {
+                "x": 0.0,
+                "y": -0.0,
+                "z": -0.050168615,
+                "yaw": 0.0
+            }
+        },
+        {
+            "timestamp": 1770032357.9272356,
+            "type": "drone",
+            "activity": "move",
+            "displacement": {
+                "x": 0.0,
+                "y": -0.0,
+                "z": -0.0757843045,
+                "yaw": 0.0
+            }
+        },
+        {
+            "timestamp": 1770032358.077454,
+            "type": "drone",
+            "activity": "move",
+            "displacement": {
+                "x": 0.0,
+                "y": -0.0,
+                "z": -0.07510933,
+                "yaw": 0.0
+            }
+        },
+        {
+            "timestamp": 1770032358.2275174,
+            "type": "drone",
+            "activity": "move",
+            "displacement": {
+                "x": 0.0,
+                "y": -0.0,
+                "z": -0.075031585,
+                "yaw": 0.0
+            }
+        },
+        {
+            "timestamp": 1770032358.3277106,
+            "type": "drone",
+            "activity": "move",
+            "displacement": {
+                "x": 0.0,
+                "y": -0.0,
+                "z": -0.0500966405,
+                "yaw": 0.0
+            }
+        },
+        {
+            "timestamp": 1770032358.4782238,
+            "type": "drone",
+            "activity": "move",
+            "displacement": {
+                "x": 0.0,
+                "y": -0.0,
+                "z": -0.0752565945,
+                "yaw": 0.0
+            }
+        },
+        {
+            "timestamp": 1770032358.6277587,
+            "type": "drone",
+            "activity": "move",
+            "displacement": {
+                "x": 0.0,
+                "y": -0.0,
+                "z": -0.0747674695,
+                "yaw": 0.0
+            }
+        },
+        {
+            "timestamp": 1770032358.7776716,
+            "type": "drone",
+            "activity": "move",
+            "displacement": {
+                "x": 0.0,
+                "y": -0.0,
+                "z": -0.074956433,
+                "yaw": 0.0
+            }
+        },
+        {
+            "timestamp": 1770032358.9274476,
+            "type": "drone",
+            "activity": "move",
+            "displacement": {
+                "x": 0.0,
+                "y": -0.0,
+                "z": -0.074887995,
+                "yaw": 0.0
+            }
+        },
+        {
+            "timestamp": 1770032359.027502,
+            "type": "drone",
+            "activity": "move",
+            "displacement": {
+                "x": 0.0,
+                "y": -0.0,
+                "z": -0.0500272895,
+                "yaw": 0.0
+            }
+        },
+        {
+            "timestamp": 1770032359.128419,
+            "type": "drone",
+            "activity": "move",
+            "displacement": {
+                "x": 0.0,
+                "y": -0.0,
+                "z": -0.050458373,
+                "yaw": 0.0
+            }
+        },
+        {
+            "timestamp": 1770032359.2287576,
+            "type": "drone",
+            "activity": "move",
+            "displacement": {
+                "x": 0.0,
+                "y": -0.0,
+                "z": -0.0501693345,
+                "yaw": 0.0
+            }
+        },
+        {
+            "timestamp": 1770032359.3608007,
+            "type": "drone",
+            "activity": "move",
+            "displacement": {
+                "x": 0.0,
+                "y": -0.0,
+                "z": -0.014239166954882183,
+                "yaw": 0.0
+            }
+        },
+        {
+            "timestamp": 1770032360.0569687,
+            "type": "drone",
+            "activity": "move",
+            "displacement": {
+                "x": 2.842699035980471e-19,
+                "y": 0.004642479836569481,
+                "z": -0.0,
+                "yaw": 0.0
+            }
+        },
+        {
+            "timestamp": 1770032360.1879413,
+            "type": "drone",
+            "activity": "move",
+            "displacement": {
+                "x": 4.009880486332285e-18,
+                "y": 0.065486318,
+                "z": -0.0,
+                "yaw": 0.0
+            }
+        },
+        {
+            "timestamp": 1770032360.3386745,
+            "type": "drone",
+            "activity": "move",
+            "displacement": {
+                "x": 4.6148658022854706e-18,
+                "y": 0.075366478,
+                "z": -0.0,
+                "yaw": 0.0
+            }
+        },
+        {
+            "timestamp": 1770032360.4886448,
+            "type": "drone",
+            "activity": "move",
+            "displacement": {
+                "x": 4.591521033909065e-18,
+                "y": 0.074985229,
+                "z": -0.0,
+                "yaw": 0.0
+            }
+        },
+        {
+            "timestamp": 1770032360.6384876,
+            "type": "drone",
+            "activity": "move",
+            "displacement": {
+                "x": 4.5876073689006895e-18,
+                "y": 0.074921314,
+                "z": -0.0,
+                "yaw": 0.0
+            }
+        },
+        {
+            "timestamp": 1770032360.7887082,
+            "type": "drone",
+            "activity": "move",
+            "displacement": {
+                "x": 4.599176821525424e-18,
+                "y": 0.0751102575,
+                "z": -0.0,
+                "yaw": 0.0
+            }
+        },
+        {
+            "timestamp": 1770032360.9386127,
+            "type": "drone",
+            "activity": "move",
+            "displacement": {
+                "x": 4.589508388127005e-18,
+                "y": 0.07495236,
+                "z": -0.0,
+                "yaw": 0.0
+            }
+        },
+        {
+            "timestamp": 1770032361.0896072,
+            "type": "drone",
+            "activity": "move",
+            "displacement": {
+                "x": 4.6228705530072474e-18,
+                "y": 0.0754972055,
+                "z": -0.0,
+                "yaw": 0.0
+            }
+        },
+        {
+            "timestamp": 1770032361.1899009,
+            "type": "drone",
+            "activity": "move",
+            "displacement": {
+                "x": 3.0706045276464757e-18,
+                "y": 0.0501467775,
+                "z": -0.0,
+                "yaw": 0.0
+            }
+        },
+        {
+            "timestamp": 1770032361.3399043,
+            "type": "drone",
+            "activity": "move",
+            "displacement": {
+                "x": 4.592537613217037e-18,
+                "y": 0.075001831,
+                "z": -0.0,
+                "yaw": 0.0
+            }
+        },
+        {
+            "timestamp": 1770032361.4909506,
+            "type": "drone",
+            "activity": "move",
+            "displacement": {
+                "x": 4.62446097118913e-18,
+                "y": 0.075523179,
+                "z": -0.0,
+                "yaw": 0.0
+            }
+        },
+        {
+            "timestamp": 1770032361.6416857,
+            "type": "drone",
+            "activity": "move",
+            "displacement": {
+                "x": 4.614925871210969e-18,
+                "y": 0.075367459,
+                "z": -0.0,
+                "yaw": 0.0
+            }
+        },
+        {
+            "timestamp": 1770032361.7915244,
+            "type": "drone",
+            "activity": "move",
+            "displacement": {
+                "x": 4.5874895578786115e-18,
+                "y": 0.07491939,
+                "z": -0.0,
+                "yaw": 0.0
+            }
+        },
+        {
+            "timestamp": 1770032361.9416955,
+            "type": "drone",
+            "activity": "move",
+            "displacement": {
+                "x": 4.59766083125276e-18,
+                "y": 0.0750854995,
+                "z": -0.0,
+                "yaw": 0.0
+            }
+        }
+    ]
+}

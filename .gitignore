@@ -9,3 +9,4 @@ map_data.pkl
 detections/*.*
 *.pt
 meshes/*.*
+gripper_ws/
