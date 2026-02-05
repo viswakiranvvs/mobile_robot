@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import cv2
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import Joy
@@ -48,12 +49,28 @@ class JoystickController(Node):
             10
         )
 
-        self.manipulatorCamera = self.create_subscription(
+        self.rightGripCamera = self.create_subscription(
             Image,
-            '/camera_rgb',
-            self.cam_callback,
+            '/right_grip_camera_rgb',
+            self.rightGripCamera_callback,
             10
         )
+
+        self.leftGripCamera = self.create_subscription(
+            Image,
+            '/left_grip_camera_rgb',
+            self.leftGripCamera_callback,
+            10
+        )
+
+        self.droneArmCamera = self.create_subscription(
+            Image,
+            '/drone_arm_camera_rgb',
+            self.droneArmCamera_callback,
+            10
+        )
+
+        
 
         self.manipulator_pose = PoseStamped()
         self.manipulator_pose.pose.position = Point(x=0.0, y=0.0, z=0.0) # Start at 2m altitude
@@ -83,14 +100,37 @@ class JoystickController(Node):
         self.last_update = self.get_clock().now()
         self.grip_closed = False
         self.logging = False
-        self.currentImage = None
+        self.currentImage = {}
         self.event_log = []
         self.get_logger().info('Joystick Controller Node Started. Waiting for /joy messages...')
         self.prev_buttons = None
+        self.directory_name = ''
+        self.images_dir = ''
     
-    def cam_callback(self, msg):
+    def rightGripCamera_callback(self, msg):
         cv_image = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
-        self.currentImage = cv_image
+        self.currentImage['rightGripCamera'] = cv_image
+
+    def leftGripCamera_callback(self, msg):
+        cv_image = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
+        self.currentImage['leftGripCamera'] = cv_image
+
+    def droneArmCamera_callback(self, msg):
+        cv_image = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
+        self.currentImage['droneArmCamera'] = cv_image
+
+    def create_directory(self):
+        import os
+        import datetime
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        self.directory_name = f'/home/robot2/Documents/isaac_sim/mobile_robot/data/event_{timestamp}'
+        if not os.path.exists(self.directory_name):
+            os.makedirs(self.directory_name)
+        self.images_dir = os.path.join(self.directory_name, 'images')
+        if not os.path.exists(self.images_dir):
+            os.makedirs(self.images_dir)
+        # os.chdir(directory_name)
+        self.get_logger().info(f'Created directory: {self.directory_name}')
 
     def joy_callback(self, msg):
         # Get the current time
@@ -135,10 +175,11 @@ class JoystickController(Node):
         self.camera_publisher.publish(self.camera_pose)
 
         startLog = msg.buttons[1]
-        if startLog==1:
+        if startLog==1 and self.prev_buttons[1] == 0:
             if self.logging==False:
                 self.logging=True
                 self.event_log = []
+                self.create_directory()
                 self.get_logger().info('Started logging joystick events.')
             elif self.logging==True:
                 self.logging=False
@@ -146,7 +187,7 @@ class JoystickController(Node):
                 logs = {
                     "events": self.event_log
                 }
-                with open('joystick_event_log.json', 'w') as f:
+                with open(f'{self.directory_name}/events_log.json', 'w') as f:
                     json.dump(logs, f, indent=4)
                 self.get_logger().info('Saved joystick event log to joystick_event_log.json.')
                 self.event_log=[]
@@ -158,6 +199,7 @@ class JoystickController(Node):
             if self.grip_closed:
                 self.grip_pose.pose.position.z = 60.0
                 self.grip_closed = False
+                self.get_logger().info('Gripper opened.')
                 self.log_event(
                     now,
                     event_type="gripper",
@@ -166,6 +208,7 @@ class JoystickController(Node):
             else:
                 self.grip_pose.pose.position.z = -60.0
                 self.grip_closed = True
+                self.get_logger().info('Gripper closed.')
                 self.log_event(
                     now,
                     event_type="gripper",
@@ -192,8 +235,8 @@ class JoystickController(Node):
                                      self.current_pose.pose.orientation.w)
         
         # Joystick inputs in BODY frame
-        vx_body = left_stick_ud * self.linear_speed    # forward/back
-        vy_body = left_stick_lr * self.linear_speed    # left/right
+        vx_body = left_stick_ud * self.linear_speed *0.5    # forward/back
+        vy_body = left_stick_lr * self.linear_speed *0.5   # left/right
         vz = right_stick_ud * self.linear_speed
         dyaw = right_stick_lr * self.angular_speed
         # Rotate into WORLD frame using yaw
@@ -240,8 +283,18 @@ class JoystickController(Node):
         self.prev_buttons = list(msg.buttons)
 
     def log_event(self, now, event_type, activity, dx=0.0, dy=0.0, dz=0.0, dyaw=0.0):
+        timestamp = now.nanoseconds / 1e9
+        if self.logging==False:
+            return
+        # self.currentImage.
+        for cam_name, img in self.currentImage.items():
+            cv2.imwrite(
+                f'{self.images_dir}/{cam_name}_img_{timestamp}.png',
+                img
+            )
+        
         self.event_log.append({
-            "timestamp": now.nanoseconds / 1e9,
+            "timestamp": timestamp,
             "type": event_type,
             "activity": activity,
             "displacement": {
@@ -251,6 +304,7 @@ class JoystickController(Node):
                 "yaw": dyaw
             }
         })
+
 
 def main(args=None):
     rclpy.init(args=args)

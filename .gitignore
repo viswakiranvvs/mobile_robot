@@ -10,3 +10,6 @@ detections/*.*
 *.pt
 meshes/*.*
 gripper_ws/
+data/
+*.zip
+*.pyc
