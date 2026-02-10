@@ -13,3 +13,4 @@ gripper_ws/
 data/
 *.zip
 *.pyc
+Drone-qwen3-2b-instruct-trl-sft-1/

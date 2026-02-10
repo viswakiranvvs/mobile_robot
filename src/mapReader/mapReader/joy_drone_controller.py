@@ -197,7 +197,7 @@ class JoystickController(Node):
 
         if grip == 1 and self.prev_buttons[0] == 0:
             if self.grip_closed:
-                self.grip_pose.pose.position.z = 60.0
+                self.grip_pose.pose.position.z = -60.0
                 self.grip_closed = False
                 self.get_logger().info('Gripper opened.')
                 self.log_event(
@@ -206,7 +206,7 @@ class JoystickController(Node):
                     activity="open"
                 )
             else:
-                self.grip_pose.pose.position.z = -60.0
+                self.grip_pose.pose.position.z = 0.0
                 self.grip_closed = True
                 self.get_logger().info('Gripper closed.')
                 self.log_event(
