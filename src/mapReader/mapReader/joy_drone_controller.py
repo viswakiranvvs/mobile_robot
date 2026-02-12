@@ -70,6 +70,13 @@ class JoystickController(Node):
             10
         )
 
+        self.GripCamera = self.create_subscription(
+            Image,
+            '/grip_camera_rgb',
+            self.GripCamera_callback,
+            10
+        )
+
         
 
         self.manipulator_pose = PoseStamped()
@@ -118,6 +125,10 @@ class JoystickController(Node):
     def droneArmCamera_callback(self, msg):
         cv_image = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
         self.currentImage['droneArmCamera'] = cv_image
+    
+    def GripCamera_callback(self, msg):
+        cv_image = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
+        self.currentImage['GripCamera'] = cv_image
 
     def create_directory(self):
         import os
@@ -199,20 +210,20 @@ class JoystickController(Node):
             if self.grip_closed:
                 self.grip_pose.pose.position.z = -60.0
                 self.grip_closed = False
-                self.get_logger().info('Gripper opened.')
-                self.log_event(
-                    now,
-                    event_type="gripper",
-                    activity="open"
-                )
-            else:
-                self.grip_pose.pose.position.z = 0.0
-                self.grip_closed = True
                 self.get_logger().info('Gripper closed.')
                 self.log_event(
                     now,
                     event_type="gripper",
                     activity="close"
+                )
+            else:
+                self.grip_pose.pose.position.z = 60.0
+                self.grip_closed = True
+                self.get_logger().info('Gripper opened.')
+                self.log_event(
+                    now,
+                    event_type="gripper",
+                    activity="open"
                 )
         #     self.grip_pose.pose.position.z = 55.0
         # else:
