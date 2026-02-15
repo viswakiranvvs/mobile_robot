@@ -10,6 +10,8 @@ import math
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
 import json
+import os
+import datetime
 
 class JoystickController(Node):
 
@@ -113,6 +115,7 @@ class JoystickController(Node):
         self.prev_buttons = None
         self.directory_name = ''
         self.images_dir = ''
+        self.prev_pose = self.current_pose
     
     def rightGripCamera_callback(self, msg):
         cv_image = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
@@ -131,8 +134,7 @@ class JoystickController(Node):
         self.currentImage['GripCamera'] = cv_image
 
     def create_directory(self):
-        import os
-        import datetime
+        
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         self.directory_name = f'/home/robot2/Documents/isaac_sim/mobile_robot/data/event_{timestamp}'
         if not os.path.exists(self.directory_name):
@@ -155,6 +157,7 @@ class JoystickController(Node):
             return # Skip if it's too soon to update
             
         self.last_update = now
+        self.prev_pose = self.current_pose
         
         # --- Map Joystick Axes to Movements ---
         # AXES: [Left-LR, Left-UD, LT, Right-LR, Right-UD, RT, Cross-LR, Cross-UD]
@@ -313,6 +316,19 @@ class JoystickController(Node):
                 "y": dy,
                 "z": dz,
                 "yaw": dyaw
+            },
+            "pose": {
+                "position": {
+                    "x": self.prev_pose.pose.position.x,
+                    "y": self.prev_pose.pose.position.y,
+                    "z": self.prev_pose.pose.position.z
+                },
+                "orientation": {
+                    "x": self.prev_pose.pose.orientation.x,
+                    "y": self.prev_pose.pose.orientation.y,
+                    "z": self.prev_pose.pose.orientation.z,
+                    "w": self.prev_pose.pose.orientation.w
+                }
             }
         })
 

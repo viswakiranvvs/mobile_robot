@@ -24,6 +24,7 @@ import torch
 from transformers import Qwen3VLForConditionalGeneration, Qwen3VLProcessor, BitsAndBytesConfig
 from qwen_vl_utils import process_vision_info
 from peft import PeftModel
+import time
 
 class QwenController(Node):
 
@@ -38,7 +39,7 @@ class QwenController(Node):
         #     10
         # )
         self.device="cuda"
-        model_id = "Qwen/Qwen3-VL-8B-Instruct"
+        model_id = "Qwen/Qwen3-VL-2B-Instruct"
 
         bnb_config = BitsAndBytesConfig(
             load_in_4bit=True,
@@ -58,12 +59,13 @@ class QwenController(Node):
 
         self.model = PeftModel.from_pretrained(
             base_model,
-            "viswakiranvvs/Drone-qwen3-8b-Grip-Camera",
+            "viswakiranvvs/Drone-qwen3-8b-Grip-Camera-3",
             # local_files_only=True
         )
 
         lora_layers = [n for n, _ in self.model.named_modules() if "lora" in n.lower()]
         self.get_logger().info("LoRA layers: " + str(len(lora_layers)))
+        self.get_logger().info("Adapter: Drone-qwen3-8b-Grip-Camera-3")
         # .to(device)
 
         self.processor = Qwen3VLProcessor.from_pretrained(model_id)
@@ -125,7 +127,7 @@ class QwenController(Node):
 
         # Initialize the current target position
         self.current_pose = PoseStamped()
-        self.current_pose.pose.position = Point(x=0.0, y=0.0, z=1.0) # Start at 2m altitude
+        self.current_pose.pose.position = Point(x=0.0, y=0.05, z=1.0) # Start at 2m altitude
         self.current_pose.pose.orientation = Quaternion(x=0.0, y=0.0, z=0.5, w=0.5) # Default orientation
         self.current_pose.header.frame_id = 'world'
 
@@ -147,9 +149,10 @@ class QwenController(Node):
         self.prev_buttons = None
         self.directory_name = ''
         self.images_dir = ''
-        self.system_message="""You are a vision-language control model for an autonomous drone equipped with a gripper.
+        self.system_message="""
+        You are a vision-language control model for an autonomous drone equipped with a gripper.
         Your task is to analyze the image from the drone’s camera and decide the next low-level action required to pick up the target object.
-        when near to object attempt a gripper close action.
+        Make sure to have the object at centre of grip camera angle. when near to object attempt a gripper close action.
         Drone is facing forward. +x is right, +y is forward, and +z is up. -x is left, -y is back, and -z is down.
         You must output ONLY a valid JSON object describing the action.
 
@@ -179,7 +182,7 @@ class QwenController(Node):
         """
 
 
-        self.query = "Predict the next control action for the drone to pick the object. If object is close enough, pick it"
+        self.query = "The images are captured from drone gripper camera and right grip camera. Predict the next control action for the drone to pick the object. If object is close enough, do the gripper close action."
     
     def goal_subscriber_callback(self, msg):
         self.current_pose = msg
@@ -195,6 +198,7 @@ class QwenController(Node):
     def extract_json(self,text):
         text = re.sub(r"```json", "", text)
         text = re.sub(r"```", "", text)
+        print(text)
         return text.strip()
 
     def GripCamera_callback(self, msg):
@@ -203,22 +207,60 @@ class QwenController(Node):
         rgb_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2RGB)
         # Convert to PIL
         pil_image = PILImage.fromarray(rgb_image)
-        # if 'rightGripCamera' not in self.currentImage:
-        #     self.get_logger().warning("Right grip camera image not available yet. Skipping this frame.")
-        #     return
-        # right_rgb_image = cv2.cvtColor(self.currentImage['rightGripCamera'], cv2.COLOR_BGR2RGB)
-        # right_pil_image = PILImage.fromarray(right_rgb_image)
-        sample = self.create_sample(pil_image)
+        if 'rightGripCamera' not in self.currentImage:
+            self.get_logger().warning("rightGripCamera image not available yet. Skipping this frame.")
+            return
+        right_rgb_image = cv2.cvtColor(self.currentImage['rightGripCamera'], cv2.COLOR_BGR2RGB)
+        right_pil_image = PILImage.fromarray(right_rgb_image)
+        sample = self.create_sample(pil_image,right_pil_image,self.current_pose.pose.position.z)
         output = self.generate_text_from_sample(sample)
         
-        print(output)
+        # print(output)
         pil_image.save("debug_image.jpg")
-        output_json = json.loads(self.extract_json(output))
-        self.write_to_pose(output_json)
+        right_pil_image.save("debug_right_image.jpg")
+        try:
+            output_json = json.loads(self.extract_json(output))
+            self.write_to_pose(output_json)
+        except Exception as e:
+            self.get_logger().error(f"Failed to parse JSON from model output: {e}")
+            return
     
-    def create_sample(self, image, rightImage=None):
+    def create_sample(self, image,rightImage=None,currHeight=None):
+        # if currHeight is not None:
+        #     query = self.query+f" Current height is {currHeight}m."
+        # else:
+        #     query = self.query
+        query = "Make sure to have the object at centre of grip camera angle. " + self.query
         return {
         "images": [image],
+        "messages": [
+            {
+                "role": "system",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": "The image captured from drone gripper camera. The drone has to pick the object."
+                    }
+                ],
+            },
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "image",
+                        "image": image,
+                    },
+                    {
+                        "type": "text",
+                        "text": "The drone can pick if the object is in exact centre of grip camera angle. How the drone has to move to align the object in centre. Current height of the drone is "+str(currHeight)+"m.",
+                    }
+                ],
+            },
+        ]
+        }
+        return {
+        "images": [image,rightImage] if rightImage is not None else [image],
+        # "images": [image],
         "messages": [
 
             {
@@ -237,13 +279,13 @@ class QwenController(Node):
                         "type": "image",
                         "image": image,
                     },
-                    # {
-                    #     "type": "image",
-                    #     "image": rightImage,
-                    # },
+                    {
+                        "type": "image",
+                        "image": rightImage,
+                    },
                     {
                         "type": "text",
-                        "text": self.query,
+                        "text": query,
                     }
                 ],
             },
@@ -257,6 +299,8 @@ class QwenController(Node):
     
 
     def write_to_pose(self, msg):
+        if msg['type'] == "gripper":
+            return
         # Get the current time
         now = self.get_clock().now()
         self.current_pose.header.stamp = now.to_msg()
@@ -271,9 +315,8 @@ class QwenController(Node):
         self.current_pose.pose.orientation.w = math.cos(current_yaw / 2.0)
         self.goal_publisher.publish(self.current_pose)
         self.get_logger().info(f"Published new goal pose: {self.current_pose.pose.position}\n")
-        delay = 2.0 
+        delay = 5.0 
         # self.get_logger().info(f"Waiting for {delay:.2f} seconds before next update...")
-        import time
         time.sleep(delay)
 
         # if not self.prev_buttons:
