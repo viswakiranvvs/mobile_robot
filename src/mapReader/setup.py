@@ -36,6 +36,7 @@ setup(
             'dummy_writer = mapReader.dummy_writer:main',
             'qwen_controller = mapReader.qwen_controller:main',
             'qwen_controller_disp = mapReader.qwen_controller_disp:main',
+            'llava_controller = mapReader.llava_controller:main',
         ],
     },
 )
