@@ -174,6 +174,7 @@ class LlavaController(Node):
         self.get_logger().info('Llava Controller Node Started. Waiting for /droneCamera messages...')
         self.prev_buttons = None
         self.directory_name = ''
+        self.isGripClosed = False
         self.images_dir = ''
         self.system_message="""You are a vision-language control model for a drone with a gripper.
 
@@ -287,6 +288,16 @@ Schema:
         self.currentImage['droneArmCamera'] = cv_image
 
     def GripCamera_callback(self, msg):
+        if self.isGripClosed:
+            if self.current_pose.pose.position.z < 2.0:
+                command={}
+                command["type"] = "drone"
+                command["activity"] = "move"
+                command["displacement"] = {"x": 0.0, "y": 0.0, "z": 0.2, "yaw": 0.0}
+                self.write_to_pose(command)
+            # else:
+            return
+        
         cv_image = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
         self.currentImage['GripCamera'] = cv_image
         rgb_image = cv2.cvtColor(cv_image, cv2.COLOR_BGR2RGB)
@@ -314,34 +325,57 @@ Schema:
         #     command["displacement"] = {"x": 0.0, "y": 0.0, "z": -0.05, "yaw": 0.0}
         # elif textAction["direction"]=="up":
         #     command["displacement"] = {"x": 0.0, "y": 0.0, "z": 0.05, "yaw": 0.0}
+        if self.current_pose.pose.position.z < 0.5:
+            disp = 0.02
+        else:
+            disp = 0.05
         if textAction["direction"]=="left":
-            command["displacement"] = {"x": -0.05, "y": 0.0, "z": 0.0, "yaw": 0.0}
+            command["displacement"] = {"x": -disp, "y": 0.0, "z": 0.0, "yaw": 0.0}
         elif textAction["direction"]=="right":
-            command["displacement"] = {"x": 0.05, "y": 0.0, "z": 0.0, "yaw": 0.0}
-        elif textAction["direction"]=="backward":
-            command["displacement"] = {"x": 0.0, "y": 0.05, "z": 0.0, "yaw": 0.0}
-        elif textAction["direction"]=="forward":
-            command["displacement"] = {"x": 0.0, "y": -0.05, "z": 0.0, "yaw": 0.0}
+            command["displacement"] = {"x": disp, "y": 0.0, "z": 0.0, "yaw": 0.0}
+        elif textAction["direction"]=="above":
+            command["displacement"] = {"x": 0.0, "y": disp, "z": 0.0, "yaw": 0.0}
+        elif textAction["direction"]=="below":
+            command["displacement"] = {"x": 0.0, "y": -disp, "z": 0.0, "yaw": 0.0}
         else:
             if textAction["centered"]==True:
-                if self.current_pose.pose.position.z > 0.15:
+                if self.current_pose.pose.position.z > 0.20:
                     command["displacement"] = {"x": 0.0, "y": 0.0, "z": -0.05, "yaw": 0.0}
                 else:
                     command["displacement"] = {"x": 0.0, "y": 0.0, "z": 0.0, "yaw": 0.0}
                     command["activity"] = "close"
                     command["type"] = "gripper"
+                    
             else:
                 command["displacement"] = {"x": 0.0, "y": 0.0, "z": 0.0, "yaw": 0.0}
 
         return command
+    
+    def wait(self, seconds):
+        serverUrl = "http://192.168.209.86:8000/"
+        endPoint= "dummyWait"
+        headers = {
+            "accept": "application/json",
+            "Content-Type": "application/x-www-form-urlencoded"
+        }
+        try:
+            data = {
+                "seconds": seconds
+            }
+            response = requests.post(serverUrl+endPoint, data=data, headers=headers)
+            return {}
+        except Exception as e:
+            self.get_logger().error(f"Error during request: {e}")
+            return {}
 
 
     def get_from_server(self, image):
         isText = True
         serverUrl = "http://192.168.209.86:8000/"
-        endPoint= "predictQwen"
+        QwenendPoint= "predictQwen"
+        LlavaendPoint= "predictLLava"
         try:
-            response = requests.post(serverUrl+endPoint, files={"image": open("debug_image.jpg", "rb"), "image2": open("debug_droneArm_image.jpg", "rb")})
+            response = requests.post(serverUrl+QwenendPoint, files={"image": open("debug_image.jpg", "rb"), "image2": open("debug_droneArm_image.jpg", "rb")})
             if response.status_code == 200:
                 data = response.json()
                 if isText:
@@ -359,6 +393,8 @@ Schema:
         if msg['type'] == "gripper" and msg['activity'] == "close":
             self.grip_pose.pose.position.z = -60.0
             self.grip_publisher.publish(self.grip_pose)
+            self.isGripClosed = True
+            self.wait(5)
             return
         # Get the current time
         now = self.get_clock().now()
