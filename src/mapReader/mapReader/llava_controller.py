@@ -153,7 +153,7 @@ class LlavaController(Node):
 
         # Initialize the current target position
         self.current_pose = PoseStamped()
-        self.current_pose.pose.position = Point(x=0.0, y=0.0, z=1.0) # Start at 2m altitude
+        self.current_pose.pose.position = Point(x=0.39, y=0.42, z=1.48) # Start at 2m altitude
         self.current_pose.pose.orientation = Quaternion(x=0.0, y=0.0, z=0.5, w=0.5) # Default orientation
         self.current_pose.header.frame_id = 'world'
 
@@ -176,6 +176,8 @@ class LlavaController(Node):
         self.directory_name = ''
         self.isGripClosed = False
         self.images_dir = ''
+        self.filePath = 'pathTaken.json'
+        self.pathTaken = []
         self.system_message="""You are a vision-language control model for a drone with a gripper.
 
 Input:
@@ -408,6 +410,22 @@ Schema:
                                      self.current_pose.pose.orientation.w)
         self.current_pose.pose.orientation.z = math.sin(current_yaw / 2.0)
         self.current_pose.pose.orientation.w = math.cos(current_yaw / 2.0)
+        self.pathTaken.append({
+            "position": {
+                "x": self.current_pose.pose.position.x,
+                "y": self.current_pose.pose.position.y,
+                "z": self.current_pose.pose.position.z
+            },
+            "orientation": {
+                "x": self.current_pose.pose.orientation.x,
+                "y": self.current_pose.pose.orientation.y,
+                "z": self.current_pose.pose.orientation.z,
+                "w": self.current_pose.pose.orientation.w
+            },
+            "timestamp": now.to_msg().sec
+        })
+        with open(self.filePath, 'w') as f:
+            json.dump(self.pathTaken, f, indent=4)
         self.goal_publisher.publish(self.current_pose)
         self.get_logger().info(f"Published new goal pose: {self.current_pose.pose.position}\n")
         delay = 5.0 
